@@ -27,14 +27,14 @@ else
     exit 1
 fi
 
-MODULES="App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es"
+MODULES="App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
-for executable in hr pm-uninstall perldoc-search pmlist jt es
+for executable in hr pm-uninstall perldoc-search pmlist jt es yg cpm pmdir
 do
     ex=`pwd`/local/bin/${executable}
     if [[ -f $ex ]]; then
