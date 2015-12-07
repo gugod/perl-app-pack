@@ -3807,4 +3807,3 @@ __END__
       -L,--local-lib-contained      Additional module path (don't include non-core modules)
 
 =cut
-/Users/gugod/Projects/cpan/perl-app-pack

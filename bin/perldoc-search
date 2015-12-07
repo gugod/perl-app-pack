@@ -102,4 +102,4 @@ positives and more accurately extract the document's title.
 
 L<perldoc>, apropos, L<perltoc>, L<App::Perldoc::Search>
 
-=cut/Users/gugod/Projects/cpan/perl-app-pack
+=cut
