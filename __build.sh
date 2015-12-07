@@ -16,7 +16,8 @@ function __fatpack_one_executable() {
 perlenv=perl-5.22.0@perl-app-pack
 
 cd $(dirname $0)
-rm -rf fatlib;
+
+git clean -d -f
 
 eval "$(perlbrew init-in-bash)"
 perlbrew use ${perlenv}
@@ -28,7 +29,7 @@ else
     exit 1
 fi
 
-MODULES="App::hr"
+MODULES="App::hr App::pmuninstall"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
@@ -38,7 +39,10 @@ hash -r
 __fatpack_one_executable `pwd`/local/bin/hr > hr
 chmod +x hr
 
-git add hr
+__fatpack_one_executable `pwd`/local/bin/pm-uninstall > pm-uninstall
+chmod +x pm-uninstall
+
+git add hr pm-uninstall
 
 git_changed=$(git status --porcelain)
 
