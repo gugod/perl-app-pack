@@ -27,18 +27,23 @@ else
     exit 1
 fi
 
-MODULES="App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::es"
+MODULES="App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
-for executable in hr pm-uninstall perldoc-search pmlist es
+for executable in hr pm-uninstall perldoc-search pmlist jt es
 do
-    __fatpack_one_executable `pwd`/local/bin/${executable} > $executable
-    chmod +x $executable
-    git add $executable
+    ex=`pwd`/local/bin/${executable}
+    if [[ -f $ex ]]; then
+        __fatpack_one_executable $ex > $executable
+        chmod +x $executable
+        git add $executable
+    else
+        echo "ERROR: $ex is missing"
+    fi
 done
 
 git_changed=$(git status --porcelain)
