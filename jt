@@ -39,4 +39,3 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-/Users/gugod/Projects/cpan/perl-app-pack
