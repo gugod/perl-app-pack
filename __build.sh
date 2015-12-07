@@ -9,8 +9,8 @@ function __fatpack_one_executable() {
     fatpack packlists-for `cat fatpacker.trace` >> packlists
     fatpack tree `cat packlists`
     (echo '#!/usr/bin/env perl'; fatpack file; cat $filename)
-    rm -rf $TMPDIR
-    cd -
+    rm -rf $TMPDIR > /dev/null 2>&1
+    cd - >/dev/null 2>&1
 }
 
 perlenv=perl-5.22.0@perl-app-pack
