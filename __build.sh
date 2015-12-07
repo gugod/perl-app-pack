@@ -45,7 +45,7 @@ chmod +x pm-uninstall
 __fatpack_one_executable `pwd`/local/bin/perldoc-search > perldoc-search
 chmod +x perldoc-search
 
-git add hr pm-uninstall
+git add hr pm-uninstall perldoc-search
 
 git_changed=$(git status --porcelain)
 
