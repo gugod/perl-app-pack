@@ -17,8 +17,6 @@ perlenv=perl-5.22.0@perl-app-pack
 
 cd $(dirname $0)
 
-git clean -d -f
-
 eval "$(perlbrew init-in-bash)"
 perlbrew use ${perlenv}
 
@@ -50,6 +48,5 @@ if [[ "$git_changed" == "" ]]; then
     exit 0
 else
     git commit -m "rebuild"
-    git push
+    git pull --rebase && git push
 fi
-
