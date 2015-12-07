@@ -16,7 +16,7 @@ function __fatpack_one_executable() {
 perlenv=perl-5.22.0@perl-app-pack
 
 cd $(dirname $0)
-
+mkdir bin
 eval "$(perlbrew init-in-bash)"
 perlbrew use ${perlenv}
 
@@ -38,9 +38,9 @@ for executable in hr pm-uninstall perldoc-search pmlist jt es
 do
     ex=`pwd`/local/bin/${executable}
     if [[ -f $ex ]]; then
-        __fatpack_one_executable $ex > $executable
-        chmod +x $executable
-        git add $executable
+        __fatpack_one_executable $ex > bin/$executable
+        chmod +x bin/$executable
+        git add bin/$executable
     else
         echo "ERROR: $ex is missing"
     fi
