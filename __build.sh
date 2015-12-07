@@ -38,9 +38,7 @@ hash -r
 __fatpack_one_executable `pwd`/local/bin/hr > hr
 chmod +x hr
 
-exit;
-
-git add st
+git add hr
 
 git_changed=$(git status --porcelain)
 
