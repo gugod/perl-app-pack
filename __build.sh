@@ -27,14 +27,14 @@ else
     exit 1
 fi
 
-MODULES="App::hr App::pmuninstall App::Perldoc::Search"
+MODULES="App::hr App::pmuninstall App::Perldoc::Search App::PMUtils"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
-for executable in hr pm-uninstall perldoc-search
+for executable in hr pm-uninstall perldoc-search pmlist
 do
     __fatpack_one_executable `pwd`/local/bin/${executable} > $executable
     chmod +x $executable
