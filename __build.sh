@@ -29,7 +29,7 @@ else
     exit 1
 fi
 
-MODULES="App::hr App::pmuninstall"
+MODULES="App::hr App::pmuninstall App::Perldoc::Search"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
@@ -41,6 +41,9 @@ chmod +x hr
 
 __fatpack_one_executable `pwd`/local/bin/pm-uninstall > pm-uninstall
 chmod +x pm-uninstall
+
+__fatpack_one_executable `pwd`/local/bin/perldoc-search > perldoc-search
+chmod +x perldoc-search
 
 git add hr pm-uninstall
 
