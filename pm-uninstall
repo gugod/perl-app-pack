@@ -743,6 +743,485 @@ $fatpacked{"CPAN/DistnameInfo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".
   
 CPAN_DISTNAMEINFO
 
+$fatpacked{"Mo.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO';
+  package Mo;
+  $VERSION=0.39;
+  no warnings;my$M=__PACKAGE__.'::';*{$M.Object::new}=sub{my$c=shift;my$s=bless{@_},$c;my%n=%{$c.::.':E'};map{$s->{$_}=$n{$_}->()if!exists$s->{$_}}keys%n;$s};*{$M.import}=sub{import warnings;$^H|=1538;my($P,%e,%o)=caller.'::';shift;eval"no Mo::$_",&{$M.$_.::e}($P,\%e,\%o,\@_)for@_;return if$e{M};%e=(extends,sub{eval"no $_[0]()";@{$P.ISA}=$_[0]},has,sub{my$n=shift;my$m=sub{$#_?$_[0]{$n}=$_[1]:$_[0]{$n}};@_=(default,@_)if!($#_%2);$m=$o{$_}->($m,$n,@_)for sort keys%o;*{$P.$n}=$m},%e,);*{$P.$_}=$e{$_}for keys%e;@{$P.ISA}=$M.Object};
+MO
+
+$fatpacked{"Mo/Golf.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_GOLF';
+  ##
+  # name:      Mo::Golf
+  # abstract:  Module for Compacting Mo Modules
+  # author:    Ingy döt Net <ingy@ingy.net>
+  # license:   perl
+  # copyright: 2011
+  # see:
+  # - Mo
+  
+  use strict;
+  use warnings;
+  package Mo::Golf;
+  
+  our $VERSION=0.39;
+  
+  use PPI;
+  
+  # This is the mapping of common names to shorter forms that still make some
+  # sense.
+  my %short_names = (
+      (
+          map {($_, substr($_, 0, 1))}
+          qw(
+              args builder class default exports features
+              generator import is_lazy method MoPKG name
+              nonlazy_defaults options reftype self
+          )
+      ),
+      build_subs => 'B',
+      old_constructor => 'C',
+      caller_pkg => 'P',
+  );
+  
+  my %short_barewords = ( EAGERINIT => q{':E'}, NONLAZY => q{':N'} );
+  
+  my %hands_off = map {($_,1)} qw'&import *import';
+  
+  sub import {
+      return unless @_ == 2 and $_[1] eq 'golf';
+      binmode STDOUT;
+      my $text = do { local $/; <> };
+      print STDOUT golf( $text );
+  };
+  
+  sub golf {
+      my ( $text ) = @_;
+  
+      my $tree = PPI::Document->new( \$text );
+  
+      my %finder_subs = _finder_subs();
+  
+      my @order = qw( comments duplicate_whitespace whitespace trailing_whitespace );
+  
+      for my $name ( @order ) {
+          my $elements = $tree->find( $finder_subs{$name} );
+          die $@ if !defined $elements;
+          $_->delete for @{ $elements || [] };
+      }
+  
+      $tree->find( $finder_subs{$_} )
+        for qw( del_superfluous_concat del_last_semicolon_in_block separate_version shorten_var_names shorten_barewords );
+      die $@ if $@;
+  
+      for my $name ( 'double_semicolon' ) {
+          my $elements = $tree->find( $finder_subs{$name} );
+          die $@ if !defined $elements;
+          $_->delete for @{ $elements || [] };
+      }
+  
+      return $tree->serialize . "\n";
+  }
+  
+  sub tok { "PPI::Token::$_[0]" }
+  
+  sub _finder_subs {
+      return (
+          comments => sub { $_[1]->isa( tok 'Comment' ) },
+  
+          duplicate_whitespace => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Whitespace' );
+  
+              $current->set_content(' ') if 1 < length $current->content;
+  
+              return 0 if !$current->next_token;
+              return 0 if !$current->next_token->isa( tok 'Whitespace' );
+              return 1;
+          },
+  
+          whitespace => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Whitespace' );
+              my $prev = $current->previous_token;
+              my $next = $current->next_token;
+  
+              return 1 if $prev->isa( tok 'Number' ) and $next->isa( tok 'Operator' ) and $next->content =~ /^\W/; # my $P
+              return 1 if $prev->isa( tok 'Word' )   and $next->isa( tok 'Operator' ) and $next->content =~ /^\W/; # my $P
+              return 1 if $prev->isa( tok 'Symbol' ) and $next->isa( tok 'Operator' ) and $next->content =~ /^\W/; # $VERSION =  but not $v and
+  
+              return 1 if $prev->isa( tok 'Operator' ) and $next->isa( tok 'Quote::Single' ) and $next->content =~ /^\W/; # eq ''
+              return 1 if $prev->isa( tok 'Operator' ) and $next->isa( tok 'Quote::Double' ) and $next->content =~ /^\W/; # eq ""
+              return 1 if $prev->isa( tok 'Operator' ) and $next->isa( tok 'Symbol' )        and $next->content =~ /^\W/; # eq $v
+              return 1 if $prev->isa( tok 'Operator' ) and $next->isa( tok 'Structure' )     and $next->content =~ /^\W/; # eq (
+  
+              return 1 if $prev->isa( tok 'Word' )       and $next->isa( tok 'Symbol' );           # my $P
+              return 1 if $prev->isa( tok 'Word' )       and $next->isa( tok 'Structure' );        # sub {
+              return 1 if $prev->isa( tok 'Word' )       and $next->isa( tok 'Quote::Double' );    # eval "
+              return 1 if $prev->isa( tok 'Symbol' )     and $next->isa( tok 'Structure' );        # %a )
+              return 1 if $prev->isa( tok 'ArrayIndex' ) and $next->isa( tok 'Operator' );         # $#_ ?
+              return 1 if $prev->isa( tok 'Word' )       and $next->isa( tok 'Cast' );             # exists &$_
+              return 0;
+          },
+  
+          trailing_whitespace => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Whitespace' );
+              my $prev = $current->previous_token;
+  
+              return 1 if $prev->isa( tok 'Structure' );                                           # ;[\n\s]
+              return 1 if $prev->isa( tok 'Operator' ) and $prev->content =~ /\W$/;                # = 0.24
+              return 1 if $prev->isa( tok 'Quote::Double' );                                       # " .
+              return 1 if $prev->isa( tok 'Quote::Single' );                                       # ' }
+  
+              return 0;
+          },
+  
+          double_semicolon => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Structure' );
+              return 0 if $current->content ne ';';
+  
+              my $prev = $current->previous_token;
+  
+              return 0 if !$prev->isa( tok 'Structure' );
+              return 0 if $prev->content ne ';';
+  
+              return 1;
+          },
+  
+          del_last_semicolon_in_block => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( 'PPI::Structure::Block' );
+  
+              my $last = $current->last_token;
+  
+              return 0 if !$last->isa( tok 'Structure' );
+              return 0 if $last->content ne '}';
+  
+              my $maybe_semi = $last->previous_token;
+  
+              return 0 if !$maybe_semi->isa( tok 'Structure' );
+              return 0 if $maybe_semi->content ne ';';
+  
+              $maybe_semi->delete;
+  
+              return 1;
+          },
+  
+          del_superfluous_concat => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Operator' );
+  
+              my $prev = $current->previous_token;
+              my $next = $current->next_token;
+  
+              return 0 if $current->content ne '.';
+              return 0 if !$prev->isa( tok 'Quote::Double' );
+              return 0 if !$next->isa( tok 'Quote::Double' );
+  
+              $current->delete;
+              $prev->set_content( $prev->{separator} . $prev->string . $next->string . $prev->{separator} );
+              $next->delete;
+  
+              return 1;
+          },
+  
+          separate_version => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( 'PPI::Statement' );
+  
+              my $first = $current->first_token;
+              return 0 if $first->content ne '$VERSION';
+  
+              $current->$_( PPI::Token::Whitespace->new( "\n" ) ) for qw( insert_before insert_after );
+  
+              return 1;
+          },
+  
+          shorten_var_names => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Symbol' );
+  
+              my $long_name = $current->canonical;
+  
+              return 1 if $hands_off{$long_name};
+              (my $name = $long_name) =~ s/^([\$\@\%])// or die $long_name;
+              my $sigil = $1;
+              die "variable $long_name conflicts with shortened var name"
+                  if grep {
+                      $name eq $_
+                  } values %short_names;
+  
+              my $short_name = $short_names{$name};
+              $current->set_content( "$sigil$short_name" ) if $short_name;
+  
+              return 1;
+          },
+  
+          shorten_barewords => sub {
+              my ( $top, $current ) = @_;
+              return 0 if !$current->isa( tok 'Word' );
+  
+              my $name = $current->content;
+  
+              die "bareword $name conflicts with shortened bareword"
+                  if grep {
+                      $name eq $_
+                  } values %short_barewords;
+  
+              my $short_name = $short_barewords{$name};
+              $current->set_content( $short_name ) if $short_name;
+  
+              return 1;
+          },
+      );
+  }
+  
+  =head1 SYNOPSIS
+  
+      perl -MMo::Golf=golf < src/Mo/foo.pm > lib/Mo/foo.pm
+  
+  =head1 DESCRIPTION
+  
+  This is the module that is responsible for taking Mo code (which is
+  documented and fairly readable) and reducing it to a single undecipherable
+  line.
+MO_GOLF
+
+$fatpacked{"Mo/Inline.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_INLINE';
+  ##
+  # name:      Mo::Inline
+  # abstract:  Inline Mo and Features into your package
+  # author:    Ingy döt Net <ingy@ingy.net>
+  # license:   perl
+  # copyright: 2011
+  # see:
+  # - Mo
+  
+  package Mo::Inline;
+  use Mo;
+  
+  our $VERSION=0.39;
+  
+  use IO::All;
+  
+  my $matcher = qr/((?m:^#\s*use Mo(\s.*)?;.*\n))(?:#.*\n)*(?:.{400,}\n)?/;
+  
+  sub run {
+      my $self = shift;
+      my @files;
+      if (not @_ and -d 'lib') {
+          print "Searching the 'lib' directory for a Mo to inline:\n";
+          @_ = 'lib';
+      }
+      if (not @_ or @_ == 1 and $_[0] =~ /^(?:-\?|-h|--help)$/) {
+          print usage();
+          return 0;
+      }
+      for my $name (@_) {
+          die "No file or directory called '$name'"
+              unless -e $name;
+          die "'$name' is not a Perl module"
+              if -f $name and $name !~ /\.pm$/;
+          if (-f $name) {
+              push @files, $name;
+          }
+          elsif (-d $name) {
+              push @_, grep /\.pm$/, map { "$_" } io($name)->All_Files;
+          }
+      }
+  
+      die "No .pm files specified"
+          unless @files;
+  
+      for my $file (@files) {
+          my $text = io($file)->all;
+          if ($text !~ $matcher) {
+              print "Ignoring $file - No Mo to Inline!\n";
+              next;
+          }
+          $self->inline($file, 1);
+      }
+  }
+  
+  sub inline {
+      my ($self, $file, $noisy) = @_;
+      my $text = io($file)->all;
+      $text =~ s/$matcher/"$1" . &inliner($2)/eg;
+      io($file)->print($text);
+      print "Mo Inlined $file\n"
+          if $noisy;
+  }
+  
+  sub inliner {
+      my $mo = shift;
+      require Mo;
+      my @features = grep {$_ ne 'qw'} ($mo =~ /(\w+)/g);
+      for (@features) {
+          eval "require Mo::$_; 1" or die $@;
+      }
+      my $inline = '';
+      $inline .= $_ for map {
+          my $module = $_;
+          $module .= '.pm';
+          my @lines = io($INC{$module})->chomp->getlines;
+          $lines[-1];
+      } ('Mo', map { s!::!/!g; "Mo/$_" } @features);
+      return <<"...";
+  #   The following line of code was produced from the previous line by
+  #   Mo::Inline version $VERSION
+  $inline\@f=qw[@features];use strict;use warnings;
+  ...
+  }
+  
+  sub usage {
+      <<'...';
+  Usage: mo-linline <perl module files or directories>
+  
+  ...
+  }
+  
+  1;
+  
+  =head1 SYNOPSIS
+  
+  In your Mo module:
+  
+      # This is effectively your own private Mo(ose) setup
+      package MyModule::Mo;
+      # use Mo qw'build builder default import';
+      1;
+  
+  From the command line:
+  
+      > mo-inline lib/MyModule/Mo.pm
+  
+  or:
+  
+      > mo-inline lib/
+  
+  or (if you are really lazy):
+  
+      > mo-inline
+  
+  Then from another module:
+  
+      package MyModule::Foo;
+      use MyModule::Mo;       # gets build, builder and default automatically
+  
+  =head1 DESCRIPTION
+  
+  Mo is so small that you can easily inline it, along with any feature modules.
+  Mo provides a script called C<mo-inline> that will do it for you.
+  
+  All you need to do is comment out the line that uses Mo, and run C<mo-inline>
+  on the file. C<mo-inline> will find such comments and do the inlining for you.
+  It will also replace any old inlined Mo with the latest version.
+  
+  What Mo could you possibly want?
+  
+  =head1 AUTOMATIC FEATURES
+  
+  By using the L<Mo::import> feature, all uses of your Mo class will turn on all
+  the features you specified. You can override it if you want, but that will be
+  the default.
+  
+  =head1 REAL WORLD EXAMPLES
+  
+  For real world examples of Mo inlined using C<mo-inline>, see L<YAML::Mo>,
+  L<Pegex::Mo> and L<TestML::Mo>.
+MO_INLINE
+
+$fatpacked{"Mo/Moose.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_MOOSE';
+  package Mo::Moose;$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'Moose::e'}=sub{my($P,$e)=@_;$P=~s/::$//;%$e=(M=>1);require Moose;Moose->import({into=>$P});Moose::Util::MetaRole::apply_metaroles(for=>$P,class_metaroles=>{attribute=>['Attr::Trait']},)};BEGIN{package Attr::Trait;use Moose::Role;around _process_options=>sub{my$orig=shift;my$c=shift;my($n,$o)=@_;$o->{is}||='rw';$o->{lazy}||=1 if defined$o->{default}or defined$o->{builder};$c->$orig(@_)};$INC{'Attr/Trait.pm'}=1}
+MO_MOOSE
+
+$fatpacked{"Mo/Mouse.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_MOUSE';
+  package Mo::Mouse;$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'Mouse::e'}=sub{my($P,$e)=@_;$P=~s/::$//;%$e=(M=>1);require Mouse;require Mouse::Util::MetaRole;Mouse->import({into=>$P});Mouse::Util::MetaRole::apply_metaroles(for=>$P,class_metaroles=>{attribute=>['Attr::Trait']},)};BEGIN{package Attr::Trait;use Mouse::Role;around _process_options=>sub{my$orig=shift;my$c=shift;my($n,$o)=@_;$o->{is}||='rw';$o->{lazy}||=1 if defined$o->{default}or defined$o->{builder};$c->$orig(@_)};$INC{'Attr/Trait.pm'}=1}
+MO_MOUSE
+
+$fatpacked{"Mo/build.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_BUILD';
+  package Mo::build;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'build::e'}=sub{my($P,$e)=@_;$e->{new}=sub{$c=shift;my$s=&{$M.Object::new}($c,@_);my@B;do{@B=($c.::BUILD,@B)}while($c)=@{$c.::ISA};exists&$_&&&$_($s)for@B;$s}};
+MO_BUILD
+
+$fatpacked{"Mo/builder.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_BUILDER';
+  package Mo::builder;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'builder::e'}=sub{my($P,$e,$o)=@_;$o->{builder}=sub{my($m,$n,%a)=@_;my$b=$a{builder}or return$m;my$i=exists$a{lazy}?$a{lazy}:!${$P.':N'};$i or ${$P.':E'}{$n}=\&{$P.$b}and return$m;sub{$#_?$m->(@_):!exists$_[0]{$n}?$_[0]{$n}=$_[0]->$b:$m->(@_)}}};
+MO_BUILDER
+
+$fatpacked{"Mo/chain.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_CHAIN';
+  package Mo::chain;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'chain::e'}=sub{my($P,$e,$o)=@_;$o->{chain}=sub{my($m,$n,%a)=@_;$a{chain}or return$m;sub{$#_?($m->(@_),return$_[0]):$m->(@_)}}};
+MO_CHAIN
+
+$fatpacked{"Mo/coerce.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_COERCE';
+  package Mo::coerce;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'coerce::e'}=sub{my($P,$e,$o)=@_;$o->{coerce}=sub{my($m,$n,%a)=@_;$a{coerce}or return$m;sub{$#_?$m->($_[0],$a{coerce}->($_[1])):$m->(@_)}};my$C=$e->{new}||*{$M.Object::new}{CODE};$e->{new}=sub{my$s=$C->(@_);$s->$_($s->{$_})for keys%$s;$s}};
+MO_COERCE
+
+$fatpacked{"Mo/default.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_DEFAULT';
+  package Mo::default;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'default::e'}=sub{my($P,$e,$o)=@_;$o->{default}=sub{my($m,$n,%a)=@_;exists$a{default}or return$m;my($d,$r)=$a{default};my$g='HASH'eq($r=ref$d)?sub{+{%$d}}:'ARRAY'eq$r?sub{[@$d]}:'CODE'eq$r?$d:sub{$d};my$i=exists$a{lazy}?$a{lazy}:!${$P.':N'};$i or ${$P.':E'}{$n}=$g and return$m;sub{$#_?$m->(@_):!exists$_[0]{$n}?$_[0]{$n}=$g->(@_):$m->(@_)}}};
+MO_DEFAULT
+
+$fatpacked{"Mo/exporter.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_EXPORTER';
+  package Mo::exporter;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'exporter::e'}=sub{my($P)=@_;if(@{$M.EXPORT}){*{$P.$_}=\&{$M.$_}for@{$M.EXPORT}}};
+MO_EXPORTER
+
+$fatpacked{"Mo/import.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_IMPORT';
+  package Mo::import;my$M="Mo::";
+  $VERSION=0.39;
+  my$i=\&import;*{$M.import}=sub{(@_==2 and not$_[1])?pop@_:@_==1?push@_,grep!/import/,@f:();goto&$i};
+MO_IMPORT
+
+$fatpacked{"Mo/importer.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_IMPORTER';
+  package Mo::importer;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'importer::e'}=sub{my($P,$e,$o,$f)=@_;(my$pkg=$P)=~s/::$//;&{$P.'importer'}($pkg,@$f)if defined&{$P.'importer'}};
+MO_IMPORTER
+
+$fatpacked{"Mo/is.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_IS';
+  package Mo::is;$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'is::e'}=sub{my($P,$e,$o)=@_;$o->{is}=sub{my($m,$n,%a)=@_;$a{is}or return$m;sub{$#_&&$a{is}eq'ro'&&caller ne'Mo::coerce'?die$n.' is ro':$m->(@_)}}};
+MO_IS
+
+$fatpacked{"Mo/nonlazy.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_NONLAZY';
+  package Mo::nonlazy;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'nonlazy::e'}=sub{${shift().':N'}=1};
+MO_NONLAZY
+
+$fatpacked{"Mo/option.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_OPTION';
+  package Mo::option;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'option::e'}=sub{my($P,$e,$o)=@_;$o->{option}=sub{my($m,$n,%a)=@_;$a{option}or return$m;my$n2=$n;*{$P."read_$n2"}=sub{$_[0]->{$n2}};sub{$#_?$m->(@_):$m->(@_,1);$_[0]}}};
+MO_OPTION
+
+$fatpacked{"Mo/required.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_REQUIRED';
+  package Mo::required;my$M="Mo::";
+  $VERSION=0.39;
+  *{$M.'required::e'}=sub{my($P,$e,$o)=@_;$o->{required}=sub{my($m,$n,%a)=@_;if($a{required}){my$C=*{$P."new"}{CODE}||*{$M.Object::new}{CODE};no warnings 'redefine';*{$P."new"}=sub{my$s=$C->(@_);my%a=@_[1..$#_];die$n." required"if!exists$a{$n};$s}}$m}};
+MO_REQUIRED
+
+$fatpacked{"Mo/xs.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'MO_XS';
+  package Mo::xs;my$M="Mo::";
+  $VERSION=0.39;
+  require Class::XSAccessor;*{$M.'xs::e'}=sub{my($P,$e,$o,$f)=@_;$P=~s/::$//;$e->{has}=sub{my($n,%a)=@_;Class::XSAccessor->import(class=>$P,accessors=>{$n=>$n})}if!grep!/^xs$/,@$f};
+MO_XS
+
 $fatpacked{"YAML.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'YAML';
   package YAML;
   our $VERSION = '1.15';
