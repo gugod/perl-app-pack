@@ -34,7 +34,7 @@ PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
-for executable in wallflower perlstrip ph minil dzil hr pm-uninstall perldoc-search pmlist jt es yg cpm pmdir tchart xkcdpass sslmaker rainbarf perlfind pureproxy git-spark scan-prereqs-cpanfile git-ribbon
+for executable in wallflower perlstrip ph minil dzil hr pm-uninstall perldoc-search pmlist jt es yg cpm pmdir tchart xkcdpass sslmaker rainbarf perlfind pureproxy git-vspark git-spark scan-prereqs-cpanfile git-ribbon
 do
     ex=`pwd`/local/bin/${executable}
     if [[ -f $ex ]]; then
