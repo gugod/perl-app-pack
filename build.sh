@@ -27,7 +27,7 @@ else
     exit 1
 fi
 
-MODULES="App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::st"
+MODULES="App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St"
 cpanm -L local $MODULES
 
 PATH=`pwd`/local/bin:$PATH
