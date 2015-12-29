@@ -23653,7 +23653,7 @@ $fatpacked{"darwin-2level/common/sense.pm"} = '#line '.(1+__LINE__).' "'.__FILE_
      ${^WARNING_BITS} ^= ${^WARNING_BITS} ^ "\x0c\x3f\x33\x00\x0f\xf0\x0f\xc0\xf0\xfc\x33\x00\x00\x00\xc0\x00\x00";
      # use strict, use utf8; use feature;
      $^H |= 0x1c820fc0;
-     @^H{qw(feature_evalbytes feature_state feature_unicode feature_say feature___SUB__ feature_switch feature_fc)} = (1) x 7;
+     @^H{qw(feature_state feature_switch feature_say feature_unicode feature_evalbytes feature___SUB__ feature_fc)} = (1) x 7;
   }
   
   1
