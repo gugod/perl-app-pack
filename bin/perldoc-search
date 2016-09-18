@@ -41,7 +41,7 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/home/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
+#!/Users/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
 require App::Perldoc::Search;
 App::Perldoc::Search->run( @ARGV );
 exit;

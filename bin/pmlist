@@ -5,16 +5,75 @@
 BEGIN {
 my %fatpacked;
 
+$fatpacked{"App/ModuleUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP_MODULEUTILS';
+  package App::ModuleUtils;
+  
+  our $DATE = '2016-08-25'; # DATE
+  our $VERSION = '0.61'; # VERSION
+  
+  1;
+  # ABSTRACT: Alias for App::PMUtils
+  
+  __END__
+  
+  =pod
+  
+  =encoding UTF-8
+  
+  =head1 NAME
+  
+  App::ModuleUtils - Alias for App::PMUtils
+  
+  =head1 VERSION
+  
+  This document describes version 0.61 of App::ModuleUtils (from Perl distribution App-PMUtils), released on 2016-08-25.
+  
+  =head1 HOMEPAGE
+  
+  Please visit the project's homepage at L<https://metacpan.org/release/App-PMUtils>.
+  
+  =head1 SOURCE
+  
+  Source repository is at L<https://github.com/perlancar/perl-App-PMUtils>.
+  
+  =head1 BUGS
+  
+  Please report any bugs or feature requests on the bugtracker website L<https://rt.cpan.org/Public/Dist/Display.html?Name=App-PMUtils>
+  
+  When submitting a bug or request, please include a test-file or a
+  patch to an existing test-file that illustrates the bug or desired
+  feature.
+  
+  =head1 SEE ALSO
+  
+  L<App::PMUtils>
+  
+  =head1 AUTHOR
+  
+  perlancar <perlancar@cpan.org>
+  
+  =head1 COPYRIGHT AND LICENSE
+  
+  This software is copyright (c) 2016 by perlancar@cpan.org.
+  
+  This is free software; you can redistribute it and/or modify it under
+  the same terms as the Perl 5 programming language system itself.
+  
+  =cut
+APP_MODULEUTILS
+
 $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP_PMUTILS';
   package App::PMUtils;
   
-  our $DATE = '2015-12-07'; # DATE
-  our $VERSION = '0.53'; # VERSION
+  our $DATE = '2016-08-25'; # DATE
+  our $VERSION = '0.61'; # VERSION
   
   use 5.010001;
   
+  our %SPEC;
+  
   our $arg_module_multiple = {
-      schema => ['array*' => of=>'str*', min_len=>1],
+      schema => ['array*' => of=>'perl::modname*', min_len=>1],
       req    => 1,
       pos    => 0,
       greedy => 1,
@@ -26,7 +85,7 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   };
   
   our $arg_module_single = {
-      schema => 'str*',
+      schema => 'perl::modname*',
       req    => 1,
       pos    => 0,
       completion => sub {
@@ -35,6 +94,117 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
           Complete::Module::complete_module(word=>$args{word});
       },
   };
+  
+  $SPEC{pmpath} = {
+      v => 1.1,
+      summary => 'Get path to locally installed Perl module',
+      args => {
+          module => $App::PMUtils::arg_module_multiple,
+          all => {
+              summary => 'Return all found files for each module instead of the first one',
+              schema => 'bool',
+              cmdline_aliases => {a=>{}},
+          },
+          abs => {
+              summary => 'Absolutify each path',
+              schema => 'bool',
+              cmdline_aliases => {P=>{}},
+          },
+          pm => {
+              schema => 'bool',
+              default => 1,
+          },
+          pmc => {
+              schema => 'bool',
+              default => 0,
+          },
+          pod => {
+              schema => 'bool',
+              default => 0,
+          },
+          prefix => {
+              schema => 'bool',
+              default => 0,
+          },
+          dir => {
+              summary => 'Show directory instead of path',
+              description => <<'_',
+  
+  Also, will return `.` if not found, so you can conveniently do this on a Unix
+  shell:
+  
+      % cd `pmpath -Pd Moose`
+  
+  and it won't change directory if the module doesn't exist.
+  
+  _
+              schema  => ['bool', is=>1],
+              cmdline_aliases => {d=>{}},
+          },
+      },
+  };
+  sub pmpath {
+      require Module::Path::More;
+      my %args = @_;
+  
+      my $mods = $args{module};
+      my $res = [];
+      my $found;
+  
+      for my $mod (@{$mods}) {
+          my $mpath = Module::Path::More::module_path(
+              module      => $mod,
+              find_pm     => $args{pm},
+              find_pmc    => $args{pmc},
+              find_pod    => $args{pod},
+              find_prefix => $args{prefix},
+              abs         => $args{abs},
+              all         => $args{all},
+          );
+          $found++ if $mpath;
+          for (ref($mpath) eq 'ARRAY' ? @$mpath : ($mpath)) {
+              if ($args{dir}) {
+                  require File::Spec;
+                  my ($vol, $dir, $file) = File::Spec->splitpath($_);
+                  $_ = $dir;
+              }
+              push @$res, @$mods > 1 ? {module=>$mod, path=>$_} : $_;
+          }
+      }
+  
+      if ($found) {
+          [200, "OK", $res];
+      } else {
+          if ($args{dir}) {
+              [200, "OK (not found)", "."];
+          } else {
+              [404, "No such module"];
+          }
+      }
+  }
+  
+  $SPEC{pmdir} = do {
+      my $meta = { %{ $SPEC{pmpath} } }; # shallow copy
+      $meta->{summary} = "Get directory of locally installed Perl module/prefix";
+      $meta->{description} = <<'_';
+  
+  This is basically a shortcut for:
+  
+      % pmpath -Pd MODULE_OR_PREFIX_NAME
+  
+  Sometimes I forgot that `pmpath` has a `-d` option, and often intuitively look
+  for a `pmdir` command.
+  
+  _
+      $meta->{args} = { %{ $SPEC{pmpath}{args} } }; # shalow copy
+      delete $meta->{args}{all};
+      delete $meta->{args}{dir};
+      delete $meta->{args}{prefix};
+      $meta;
+  };
+  sub pmdir {
+      pmpath(@_, prefix=>1, dir=>1);
+  }
   
   1;
   # ABSTRACT: Command-line utilities related to Perl modules
@@ -51,7 +221,7 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =head1 VERSION
   
-  This document describes version 0.53 of App::PMUtils (from Perl distribution App-PMUtils), released on 2015-12-07.
+  This document describes version 0.61 of App::PMUtils (from Perl distribution App-PMUtils), released on 2016-08-25.
   
   =head1 SYNOPSIS
   
@@ -59,6 +229,8 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   modules:
   
   =over
+  
+  =item * L<module-dir>
   
   =item * L<pmbin>
   
@@ -70,9 +242,13 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =item * L<pmcost>
   
+  =item * L<pmdir>
+  
   =item * L<pmdoc>
   
   =item * L<pmedit>
+  
+  =item * L<pmhtml>
   
   =item * L<pminfo>
   
@@ -83,6 +259,8 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   =item * L<pmlist>
   
   =item * L<pmman>
+  
+  =item * L<pmminversion>
   
   =item * L<pmpath>
   
@@ -96,9 +274,109 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =item * L<podpath>
   
+  =item * L<pwd2mod>
+  
   =back
   
   The main purpose of these utilities is tab completion.
+  
+  =head1 FUNCTIONS
+  
+  
+  =head2 pmdir(%args) -> [status, msg, result, meta]
+  
+  Get directory of locally installed Perl module/prefix.
+  
+  This is basically a shortcut for:
+  
+   % pmpath -Pd MODULE_OR_PREFIX_NAME
+  
+  Sometimes I forgot that C<pmpath> has a C<-d> option, and often intuitively look
+  for a C<pmdir> command.
+  
+  This function is not exported.
+  
+  Arguments ('*' denotes required arguments):
+  
+  =over 4
+  
+  =item * B<abs> => I<bool>
+  
+  Absolutify each path.
+  
+  =item * B<module>* => I<array[perl::modname]>
+  
+  =item * B<pm> => I<bool> (default: 1)
+  
+  =item * B<pmc> => I<bool> (default: 0)
+  
+  =item * B<pod> => I<bool> (default: 0)
+  
+  =back
+  
+  Returns an enveloped result (an array).
+  
+  First element (status) is an integer containing HTTP status code
+  (200 means OK, 4xx caller error, 5xx function error). Second element
+  (msg) is a string containing error message, or 'OK' if status is
+  200. Third element (result) is optional, the actual result. Fourth
+  element (meta) is called result metadata and is optional, a hash
+  that contains extra information.
+  
+  Return value:  (any)
+  
+  
+  =head2 pmpath(%args) -> [status, msg, result, meta]
+  
+  Get path to locally installed Perl module.
+  
+  This function is not exported.
+  
+  Arguments ('*' denotes required arguments):
+  
+  =over 4
+  
+  =item * B<abs> => I<bool>
+  
+  Absolutify each path.
+  
+  =item * B<all> => I<bool>
+  
+  Return all found files for each module instead of the first one.
+  
+  =item * B<dir> => I<bool>
+  
+  Show directory instead of path.
+  
+  Also, will return C<.> if not found, so you can conveniently do this on a Unix
+  shell:
+  
+   % cd C<pmpath -Pd Moose>
+  
+  and it won't change directory if the module doesn't exist.
+  
+  =item * B<module>* => I<array[perl::modname]>
+  
+  =item * B<pm> => I<bool> (default: 1)
+  
+  =item * B<pmc> => I<bool> (default: 0)
+  
+  =item * B<pod> => I<bool> (default: 0)
+  
+  =item * B<prefix> => I<bool> (default: 0)
+  
+  =back
+  
+  Returns an enveloped result (an array).
+  
+  First element (status) is an integer containing HTTP status code
+  (200 means OK, 4xx caller error, 5xx function error). Second element
+  (msg) is a string containing error message, or 'OK' if status is
+  200. Third element (result) is optional, the actual result. Fourth
+  element (meta) is called result metadata and is optional, a hash
+  that contains extra information.
+  
+  Return value:  (any)
   
   =head1 FAQ
   
@@ -114,6 +392,22 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   typing.
   
   =for END_BLOCK: faq
+  
+  =head1 HOMEPAGE
+  
+  Please visit the project's homepage at L<https://metacpan.org/release/App-PMUtils>.
+  
+  =head1 SOURCE
+  
+  Source repository is at L<https://github.com/perlancar/perl-App-PMUtils>.
+  
+  =head1 BUGS
+  
+  Please report any bugs or feature requests on the bugtracker website L<https://rt.cpan.org/Public/Dist/Display.html?Name=App-PMUtils>
+  
+  When submitting a bug or request, please include a test-file or a
+  patch to an existing test-file that illustrates the bug or desired
+  feature.
   
   =head1 SEE ALSO
   
@@ -142,29 +436,13 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =for END_BLOCK: see_also
   
-  =head1 HOMEPAGE
-  
-  Please visit the project's homepage at L<https://metacpan.org/release/App-PMUtils>.
-  
-  =head1 SOURCE
-  
-  Source repository is at L<https://github.com/sharyanto/perl-App-PMUtils>.
-  
-  =head1 BUGS
-  
-  Please report any bugs or feature requests on the bugtracker website L<https://rt.cpan.org/Public/Dist/Display.html?Name=App-PMUtils>
-  
-  When submitting a bug or request, please include a test-file or a
-  patch to an existing test-file that illustrates the bug or desired
-  feature.
-  
   =head1 AUTHOR
   
   perlancar <perlancar@cpan.org>
   
   =head1 COPYRIGHT AND LICENSE
   
-  This software is copyright (c) 2015 by perlancar@cpan.org.
+  This software is copyright (c) 2016 by perlancar@cpan.org.
   
   This is free software; you can redistribute it and/or modify it under
   the same terms as the Perl 5 programming language system itself.
@@ -175,8 +453,8 @@ APP_PMUTILS
 $fatpacked{"Perinci/CmdLine/Any.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'PERINCI_CMDLINE_ANY';
   package Perinci::CmdLine::Any;
   
-  our $DATE = '2015-09-03'; # DATE
-  our $VERSION = '0.12'; # VERSION
+  our $DATE = '2016-07-20'; # DATE
+  our $VERSION = '0.13'; # VERSION
   
   use 5.010001;
   use strict;
@@ -245,7 +523,7 @@ $fatpacked{"Perinci/CmdLine/Any.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n
   
   =head1 VERSION
   
-  This document describes version 0.12 of Perinci::CmdLine::Any (from Perl distribution Perinci-CmdLine-Any), released on 2015-09-03.
+  This document describes version 0.13 of Perinci::CmdLine::Any (from Perl distribution Perinci-CmdLine-Any), released on 2016-07-20.
   
   =head1 SYNOPSIS
   
@@ -287,13 +565,6 @@ $fatpacked{"Perinci/CmdLine/Any.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n
   
   Either specify module name, or C<lite> or C<classic>.
   
-  =head1 SEE ALSO
-  
-  L<Perinci::CmdLine::Lite>, L<Perinci::CmdLine::Classic>
-  
-  Another alternative backend, but not available through Perinci::CmdLine::Any
-  since it works by generating script instead: L<Perinci::CmdLine::Inline>
-  
   =head1 HOMEPAGE
   
   Please visit the project's homepage at L<https://metacpan.org/release/Perinci-CmdLine-Any>.
@@ -310,13 +581,20 @@ $fatpacked{"Perinci/CmdLine/Any.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n
   patch to an existing test-file that illustrates the bug or desired
   feature.
   
+  =head1 SEE ALSO
+  
+  L<Perinci::CmdLine::Lite>, L<Perinci::CmdLine::Classic>
+  
+  Another alternative backend, but not available through Perinci::CmdLine::Any
+  since it works by generating script instead: L<Perinci::CmdLine::Inline>
+  
   =head1 AUTHOR
   
   perlancar <perlancar@cpan.org>
   
   =head1 COPYRIGHT AND LICENSE
   
-  This software is copyright (c) 2015 by perlancar@cpan.org.
+  This software is copyright (c) 2016 by perlancar@cpan.org.
   
   This is free software; you can redistribute it and/or modify it under
   the same terms as the Perl 5 programming language system itself.
@@ -360,10 +638,10 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/home/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
+#!/Users/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
 
-our $DATE = '2015-12-07'; # DATE
-our $VERSION = '0.53'; # VERSION
+our $DATE = '2016-08-25'; # DATE
+our $VERSION = '0.61'; # VERSION
 
 use 5.010;
 use strict;
@@ -515,9 +793,7 @@ sub pmlist {
     }
     my $meta = {};
     if ($args{detail}) {
-        $meta->{format_options}{any}{table_column_orders} = [
-            [qw/module is_core is_xs/],
-        ];
+        $meta->{'table.fields'} = [qw/module is_core is_xs/];
     }
     [200, "OK", \@res, $meta];
 }
@@ -541,7 +817,7 @@ pmlist - List Perl modules (and PODs, and module prefixes)
 
 =head1 VERSION
 
-This document describes version 0.53 of pmlist (from Perl distribution App-PMUtils), released on 2015-12-07.
+This document describes version 0.61 of pmlist (from Perl distribution App-PMUtils), released on 2016-08-25.
 
 =head1 SYNOPSIS
 
@@ -732,21 +1008,21 @@ It is also recommended to install C<shcompgen> (see above).
 
 For fish and zsh, install C<shcompgen> as described above.
 
-=head1 ENVIRONMENT
-
-=head2 PMLIST_OPT => str
-
-Specify additional command-line options
-
 =head1 CONFIGURATION FILE
 
-This script can read configuration file, which by default is searched at C<~/.config/pmlist.conf>, C<~/pmlist.conf> or C</etc/pmlist.conf> (can be changed by specifying C<--config-path>). All found files will be read and merged.
+This script can read configuration files. Configuration files are in the format of L<IOD>, which is basically INI with some extra features.
+
+By default, these names are searched for configuration filenames (can be changed using C<--config-path>): F<~/.config/pmlist.conf>, F<~/pmlist.conf>, or F</etc/pmlist.conf>.
+
+All found files will be read and merged.
 
 To disable searching for configuration files, pass C<--no-config>.
 
-Configuration file is in the format of L<IOD>, which is basically INI with some extra features. 
+You can put multiple profiles in a single file by using section names like C<[profile=SOMENAME]> or C<[SOMESECTION profile=SOMENAME]>. Those sections will only be read if you specify the matching C<--config-profile SOMENAME>.
 
-You can put multiple profiles in a single file by using section names like C<[profile=SOMENAME]>. Those sections will only be read if you specify the matching C<--config-profile SOMENAME>.
+You can also put configuration for multiple programs inside a single file, and use filter C<program=NAME> in section names, e.g. C<[program=NAME ...]> or C<[SOMESECTION program=NAME]>. The section will then only be used when the reading program matches.
+
+Finally, you can filter a section by environment variable using the filter C<env=CONDITION> in section names. For example if you only want a section to be read if a certain environment variable is true: C<[env=SOMEVAR ...]> or C<[SOMESECTION env=SOMEVAR ...]>. If you only want a section to be read when the value of an environment variable has value equals something: C<[env=HOSTNAME=blink ...]> or C<[SOMESECTION env=HOSTNAME=blink ...]>. If you only want a section to be read when the value of an environment variable does not equal something: C<[env=HOSTNAME!=blink ...]> or C<[SOMESECTION env=HOSTNAME!=blink ...]>. If you only want a section to be read when an environment variable contains something: C<[env=HOSTNAME*=server ...]> or C<[SOMESECTION env=HOSTNAME*=server ...]>. Note that currently due to simplistic parsing, there must not be any whitespace in the value being compared because it marks the beginning of a new section filter or section name.
 
 List of available configuration parameters:
 
@@ -763,6 +1039,12 @@ List of available configuration parameters:
  recurse (see --recurse)
  xs (see --xs)
 
+=head1 ENVIRONMENT
+
+=head2 PMLIST_OPT => str
+
+Specify additional command-line options
+
 =head1 FILES
 
 ~/.config/pmlist.conf
@@ -777,7 +1059,7 @@ Please visit the project's homepage at L<https://metacpan.org/release/App-PMUtil
 
 =head1 SOURCE
 
-Source repository is at L<https://github.com/sharyanto/perl-App-PMUtils>.
+Source repository is at L<https://github.com/perlancar/perl-App-PMUtils>.
 
 =head1 BUGS
 
@@ -793,7 +1075,7 @@ perlancar <perlancar@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2015 by perlancar@cpan.org.
+This software is copyright (c) 2016 by perlancar@cpan.org.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
