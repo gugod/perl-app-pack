@@ -1,6 +1,14 @@
 #!/bin/bash
 set -x
 
+export PUREPERL_ONLY=1
+export PERL_JSON_BACKEND=JSON::backportPP
+export B_HOOKS_ENDOFSCOPE_IMPLEMENTATION=PP
+export PACKAGE_STASH_IMPLEMENTATION=PP
+export PARAMS_VALIDATE_IMPLEMENTATION=PP
+export LIST_MOREUTILS_PP=1
+export MOO_XS_DISABLE=1
+
 function __fatpack_one_executable() {
     filename=$1
     TMPDIR=`mktemp -d /tmp/perl-app-pack.XXXXXX` || exit 1
@@ -13,7 +21,10 @@ function __fatpack_one_executable() {
     cd - >/dev/null 2>&1
 }
 
-perlenv=perl-5.22.0@perl-app-pack
+MODULES="App::FatPacker Getopt::Long::Descriptive Param::Validate DateTime App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St"
+
+# perlenv=perl-5.22.0@perl-app-pack
+perlenv=v18@perl-app-pack
 
 cd $(dirname $0)
 mkdir bin
@@ -27,8 +38,8 @@ else
     exit 1
 fi
 
-MODULES="App::FatPacker Getopt::Long::Descriptive Param::Validate DateTime App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St"
-cpanm -L local $MODULES
+# cpanm -L local $MODULES
+cpm install --target-perl 5.18.2 $MODULES
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
@@ -45,6 +56,8 @@ do
         echo "ERROR: $ex is missing"
     fi
 done
+
+exit
 
 git_changed=$(git status --porcelain)
 
