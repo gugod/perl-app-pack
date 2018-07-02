@@ -85,3 +85,6 @@ requires 'Math::Round';
 requires 'Term::Spark';
 requires 'Term::Vspark';
 requires 'App::Git::Autofixup';
+requires 'App::YTDL';
+requires 'Term::ANSIScreen';
+requires 'Term::Choose';
