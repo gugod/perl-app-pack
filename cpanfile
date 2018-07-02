@@ -84,3 +84,4 @@ requires 'List::UtilsBy';
 requires 'Math::Round';
 requires 'Term::Spark';
 requires 'Term::Vspark';
+requires 'App::Git::Autofixup';
