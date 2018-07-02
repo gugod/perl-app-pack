@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+# set -x
 
 export PUREPERL_ONLY=1
 export PERL_JSON_BACKEND=JSON::backportPP
@@ -21,7 +21,7 @@ function __fatpack_one_executable() {
     cd - >/dev/null 2>&1
 }
 
-MODULES="App::FatPacker Getopt::Long::Descriptive Param::Validate DateTime App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St"
+MODULES="Data::OptList Params::Util common::sense Sub::Install Sub::Exporter::Util App::FatPacker Getopt::Long::Descriptive Params::Validate DateTime App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St IO::Interactive Class::Accessor::Lite Pithub YAML CPAN::DistnameInfo JSON IO::Prompter App::Cmd::Setup Module::Pluggable::Object"
 
 # perlenv=perl-5.22.0@perl-app-pack
 perlenv=v18@perl-app-pack
@@ -38,8 +38,8 @@ else
     exit 1
 fi
 
-# cpanm -L local $MODULES
-cpm install --target-perl 5.18.2 $MODULES
+cpm install --with-recommends -L local --target-perl 5.18.2 --pp $MODULES
+cpanm -L local --notest $MODULES
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
@@ -50,6 +50,8 @@ do
     ex=`pwd`/local/bin/${executable}
     if [[ -f $ex ]]; then
         __fatpack_one_executable $ex > bin/$executable
+
+        
         chmod +x bin/$executable
         git add bin/$executable
     else

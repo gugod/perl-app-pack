@@ -5,6 +5,331 @@
 BEGIN {
 my %fatpacked;
 
+$fatpacked{"App/St.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP_ST';
+  package App::St;
+  
+  use strict;
+  use warnings;
+  
+  #use bignum;
+  
+  our $VERSION = '1.1.3';
+  
+  sub new {
+    my ($class, %opt) = @_;
+  
+    my $delimiter  = $opt{'delimiter'} || "\t";
+    my $format     = $opt{'format'}    || '%.2f';
+  
+    if ($delimiter =~ /^\\[a-z]$/) {
+      $delimiter = $delimiter eq '\t' ? "\t"
+                 : $delimiter eq '\n' ? "\n"
+                                      : die "Invalid delimiter: '$delimiter'\n";
+    }
+  
+    if ($format =~ m{( \s* \% [\s+-]? [0-9]*\.?[0-9]* [deEfgGi] \s* )}x) {
+      $format = $1;
+    } else {
+      die "Invalid format: '$format'\n";
+    }
+  
+    return bless {
+      %opt,
+      N          => 0,
+      sum        => 0,
+      sum_square => 0,
+      mean       => 0,
+      stddev     => 0,
+      stderr     => 0,
+      min        => undef,
+      q1         => 0,
+      median     => 0,
+      q3         => 0,
+      max        => undef,
+      M2         => 0,
+      delimiter  => $delimiter,
+      format     => $format,
+      data       => [],
+    }, $class;
+  }
+  
+  sub validate {
+    my ($self, $num) = @_;
+  
+    return ($num =~ m{^
+      [+-]?
+      (?: \. ? [0-9]+
+        | [0-9]+ \. [0-9]*
+        | [0-9]* \. ? [0-9]+ [Ee] [+-]? [0-9]+
+      )
+    $}x);
+  }
+  
+  sub process {
+    my ($self, $num) = @_;
+  
+    die "Invalid input '$num'\n" if !$self->validate($num);
+  
+    $self->{N}++;
+  
+    $self->{sum} += $num;
+  
+    $self->{min} = $num if (!defined $self->{min} or $num < $self->{min});
+    $self->{max} = $num if (!defined $self->{max} or $num > $self->{max});
+  
+    my $delta = $num - $self->{mean};
+  
+    $self->{mean} += $delta / $self->{N};
+    $self->{M2}   += $delta * ($num - $self->{mean});
+  
+    push( @{ $self->{data} }, $num ) if $self->{keep_data};
+  
+    return;
+  }
+  
+  sub N {
+    return $_[0]->{N};
+  }
+  
+  sub sum {
+    return $_[0]->{sum};
+  }
+  
+  sub min {
+    return $_[0]->{min};
+  }
+  
+  sub max {
+    return $_[0]->{max};
+  }
+  
+  sub mean {
+    my ($self,%opt) = @_;
+  
+    my $mean = $self->{mean};
+  
+    return $opt{formatted} ? $self->_format($mean)
+                           : $mean;
+  }
+  
+  sub quartile {
+      my ($self,$q,%opt) = @_;
+      if ($q !~ /^[01234]$/) {
+          die "Invalid quartile '$q'\n";
+      }
+      return $self->percentile($q / 4 * 100, %opt);
+  }
+  
+  sub median {
+      my ($self,%opt) = @_;
+      return $self->percentile(50, %opt);
+  }
+  
+  sub variance {
+    my ($self,%opt) = @_;
+  
+    my $N  = $self->{N};
+    my $M2 = $self->{M2};
+  
+    my $variance = $N > 1 ? $M2 / ($N - 1) : undef;
+  
+    return $opt{formatted} ? $self->_format($variance)
+                           : $variance;
+  }
+  
+  sub stddev {
+    my ($self,%opt) = @_;
+  
+    my $variance = $self->variance();
+  
+    my $stddev = defined $variance ? sqrt($variance) : undef;
+  
+    return $opt{formatted} ? $self->_format($stddev)
+                           : $stddev;
+  }
+  
+  sub stderr {
+    my ($self,%opt) = shift;
+  
+    my $stddev = $self->stddev();
+    my $N      = $self->N();
+  
+    my $stderr  = defined $stddev ? $stddev/sqrt($N) : undef;
+  
+    return $opt{formatted} ? $self->_format($stderr)
+                           : $stderr;
+  }
+  
+  sub percentile {
+      my ($self, $p, %opt) = @_;
+  
+      my $data = $self->{data};
+  
+      if (!$self->{keep_data} or scalar @{$data} == 0) {
+          die "Can't get percentile from empty dataset\n";
+      }
+  
+      if ($p < 0 or $p > 100) {
+          die "Invalid percentile '$p'\n";
+      }
+  
+      if (!$self->{_is_sorted_}) {
+          $data = [ sort {$a <=> $b} @{ $data } ];
+          $self->{data} = $data;
+          $self->{_is_sorted_} = 1;
+      }
+  
+      my $N = $self->N();
+      my $idx = ($N - 1) * $p / 100;
+  
+      my $percentile =
+          int($idx) == $idx ? $data->[$idx]
+                            : ($data->[$idx] + $data->[$idx+1]) / 2;
+  
+      return $opt{formatted} ? _format($percentile)
+                             : $percentile;
+  }
+  
+  sub result {
+      my $self = shift;
+  
+      my %result = (
+          N          => $self->N(),
+          sum        => $self->sum(),
+          mean       => $self->mean(),
+          stddev     => $self->stddev(),
+          stderr     => $self->stderr(),
+          min        => $self->min(),
+          max        => $self->max(),
+          variance   => $self->variance(),
+      );
+  
+      if ($self->{keep_data}) {
+          %result = (%result,
+              (
+                  q1      => $self->quartile(1),
+                  median  => $self->median(),
+                  q3      => $self->quartile(3),
+              )
+          );
+      }
+  
+      # the following is a hack to accept multiple percentiles/quartiles
+      if ( exists $self->{percentile} ) {
+          my $percentile = ref $self->{percentile} eq 'ARRAY'
+            ? [ map { $self->percentile($_) } @{ $self->{percentile} } ]
+            : $self->percentile( $self->{percentile} );
+  
+          %result = (
+              %result,
+              percentile => $percentile
+          );
+      }
+  
+      if (exists $self->{quartile}) {
+          my $quartile = ref $self->{quartile} eq 'ARRAY'
+              ? [ map { $self->quartile($_) } @{ $self->{quartile} } ]
+              : $self->quartile( $self->{quartile} );
+  
+          %result = (
+              %result,
+              quartile => $quartile,
+          );
+      }
+  
+      return %result;
+  }
+  
+  sub _format {
+    my ($self,$value,%opt) = @_;
+  
+    my $format = $self->{format};
+  
+    return sprintf( $format, $value );
+  }
+  
+  1;
+  
+  __END__
+  
+  =head1 NAME
+  
+  App::St - Simple Statistics
+  
+  =head1 DESCRIPTION
+  
+  App::St provides the core functionality of the L<st> application.
+  
+  =head1 SYNOPSIS
+  
+    use App::St;
+  
+    my $st = App::St->new();
+  
+    while (<>) {
+      chomp;
+      next unless $st->validate($_);
+      $st->process($_);
+    }
+  
+    print $st->mean();
+    print $st->stddev();
+    print $st->sterr();
+  
+  =head1 METHODS
+  
+  =head2 new(%options)
+  
+  =head2 validate($num)
+  
+  =head2 process($num)
+  
+  =head2 N
+  
+  =head2 sum
+  
+  =head2 mean
+  
+  =head2 stddev
+  
+  =head2 stderr
+  
+  =head2 percentile=<0..100>
+  
+  =head2 quartile=<0..4>
+  
+  =head2 min
+  
+  =head2 q1
+  
+  =head2 median
+  
+  =head2 q3
+  
+  =head2 max
+  
+  =head1 AUTHOR
+  
+  Nelson Ferraz L<<nferraz@gmail.com>>
+  
+  =head1 CONTRIBUTING
+  
+  Send comments, suggestions and bug reports to:
+  
+  https://github.com/nferraz/st/issues
+  
+  Or fork the code on github:
+  
+  https://github.com/nferraz/st
+  
+  =head1 COPYRIGHT
+  
+  Copyright (c) 2013 Nelson Ferraz.
+  
+  This program is free software; you can redistribute it and/or modify
+  it under the MIT License (see LICENSE).
+APP_ST
+
 s/^  //mg for values %fatpacked;
 
 my $class = 'FatPacked::'.(0+\%fatpacked);
@@ -41,13 +366,17 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/Users/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl -T
+#!/home/gugod/perl5/perlbrew/perls/v18/bin/perl
+
+eval 'exec /home/gugod/perl5/perlbrew/perls/v18/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 
 use strict;
 use warnings;
 
 #use bignum;
 
+use Data::Dumper;
 use Getopt::Long;
 use Pod::Usage;
 
@@ -70,9 +399,8 @@ GetOptions(
   'median|q2',
   'q3',
   'max|q4',
-  'mode',
-  'percentile=i',
-  'quartile=i',
+  'percentile=f@',
+  'quartile=i@',
 
   # predefined output sets
   'summary',
@@ -97,11 +425,21 @@ pod2usage(1) if $opt{help};
 my %config = get_config(%opt);
 my @stats  = statistical_options(%opt);
 
-if ($opt{summary} or $opt{complete} or $opt{q1} or $opt{median} or $opt{q3} or $opt{quantile}) {
+if (   $opt{summary}
+    or $opt{complete}
+    or $opt{q1}
+    or $opt{median}
+    or $opt{q3}
+    or defined $opt{percentile}
+    or defined $opt{quartile} )
+{
     $config{keep_data} = 1;
 }
 
-my $st = App::St->new(%config);
+# special cases: percentile and quartile are not booleans
+my %special_parameters = map { $_ => $opt{$_} } grep { exists $opt{$_} } qw/percentile quartile/;
+
+my $st = App::St->new(%config, %special_parameters);
 
 my $n = 0;
 while (my $num = <>) {
@@ -125,31 +463,41 @@ exit if $st->N() == 0;
 
 my %result = $st->result();
 
-my @opt = grep { defined $result{$_} } statistical_options(%opt);
+my @opt = grep { exists $result{$_} } statistical_options(%opt);
 
 if (scalar @opt == 1) {
-  print sprintf( $config{format}, $result{$opt[0]} ), "\n";
+  print _formatted_value( $config{format}, $result{$opt[0]} ), "\n";
   exit;
 }
 
 if ($config{'transpose-output'}) {
   for my $opt (@opt) {
     print "$opt$config{delimiter}" unless $config{'no-header'};
-    print sprintf( $config{format}, $result{$opt} ), "\n";
+    print _formatted_value( $config{format}, $result{$opt} ), "\n";
   }
 } else {
   print join($config{delimiter}, @opt), "\n" unless $config{'no-header'};
-  print join($config{delimiter}, map { sprintf ($config{format}, $result{$_}) } @opt), "\n";
+  print join($config{delimiter}, map { _formatted_value($config{format}, $result{$_}) } @opt), "\n";
 }
 
 exit;
+
+sub _formatted_value {
+    my ($format, $value) = @_;
+
+    my @values = ref $value eq 'ARRAY' ? @{ $value } : ( $value );
+
+    my $formatted_value = join( ';', map { sprintf( $format, $_ ) } @values );
+
+    return $formatted_value;
+}
 
 ###
 
 sub get_config {
   my %opt = @_;
 
-  my %config = map { $_ => $opt{$_} } grep { defined $opt{$_} } qw/delimiter format no-header transpose-output quiet strict/;
+  my %config = map { $_ => $opt{$_} } grep { exists $opt{$_} } qw/delimiter format no-header transpose-output quiet strict/;
 
   my $delimiter  = $opt{'delimiter'} || "\t";
   my $format     = $opt{'format'}    || '%g';
@@ -175,13 +523,13 @@ sub statistical_options {
 
   # predefined sets
   my %predefined = (
-    complete => [ qw/N min q1 median q3 max sum mean stddev stderr variance percentile quartile mode/ ],
+    complete => [ qw/N min q1 median q3 max sum mean stddev stderr variance percentile quartile/ ],
     summary  => [ qw/min q1 median q3 max/ ],
-    default  => [ qw/N min max sum mean stddev stderr/ ],
+    default  => [ qw/N min max sum mean stddev/ ],
   );
 
   # selected options
-  my %selected = map { $_ => 1 } grep { defined $opt{$_} } @{ $predefined{complete} };
+  my %selected = map { $_ => 1 } grep { exists $opt{$_} } @{ $predefined{complete} };
 
   # expand with predefined sets
   for my $set (keys %predefined) {
@@ -190,7 +538,7 @@ sub statistical_options {
     }
   }
 
-  my @selected = %selected ? grep { defined $selected{$_} } @{ $predefined{complete} }
+  my @selected = %selected ? grep { exists $selected{$_} } @{ $predefined{complete} }
                            : @{ $predefined{default} };
 
   return @selected;
@@ -216,14 +564,22 @@ file or standard input.
 =head3 FUNCTIONS
 
   --N|n|count           # sample size
+  --min                 # minimum
   --max                 # maximum
   --mean|average|avg|m  # mean
-  --median              # median
-  --min                 # minimum
   --stdev|sd            # standard deviation
   --stderr|sem|se       # standard error of mean
   --sum|s               # sum of elements of the sample
   --variance|var        # variance
+
+The following options require that the whole dataset is stored in
+memory, which can be problematic for huge datasets:
+
+  --q1                  # first quartile
+  --median|q2           # second quartile, or median
+  --q3                  # third quartile
+  --percentile=f        # percentile=<0..100>
+  --quartile=i          # quartile=<1..4>
 
 If no functions are selected, C<st> will print the default output:
 

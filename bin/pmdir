@@ -8,8 +8,8 @@ my %fatpacked;
 $fatpacked{"App/ModuleUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP_MODULEUTILS';
   package App::ModuleUtils;
   
-  our $DATE = '2016-08-25'; # DATE
-  our $VERSION = '0.61'; # VERSION
+  our $DATE = '2018-04-03'; # DATE
+  our $VERSION = '0.720'; # VERSION
   
   1;
   # ABSTRACT: Alias for App::PMUtils
@@ -26,7 +26,7 @@ $fatpacked{"App/ModuleUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<
   
   =head1 VERSION
   
-  This document describes version 0.61 of App::ModuleUtils (from Perl distribution App-PMUtils), released on 2016-08-25.
+  This document describes version 0.720 of App::ModuleUtils (from Perl distribution App-PMUtils), released on 2018-04-03.
   
   =head1 HOMEPAGE
   
@@ -54,7 +54,7 @@ $fatpacked{"App/ModuleUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<
   
   =head1 COPYRIGHT AND LICENSE
   
-  This software is copyright (c) 2016 by perlancar@cpan.org.
+  This software is copyright (c) 2018, 2017, 2016, 2015, 2014 by perlancar@cpan.org.
   
   This is free software; you can redistribute it and/or modify it under
   the same terms as the Perl 5 programming language system itself.
@@ -65,8 +65,8 @@ APP_MODULEUTILS
 $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP_PMUTILS';
   package App::PMUtils;
   
-  our $DATE = '2016-08-25'; # DATE
-  our $VERSION = '0.61'; # VERSION
+  our $DATE = '2018-04-03'; # DATE
+  our $VERSION = '0.720'; # VERSION
   
   use 5.010001;
   
@@ -111,19 +111,19 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
               cmdline_aliases => {P=>{}},
           },
           pm => {
-              schema => 'bool',
+              schema => ['int*', min=>0],
               default => 1,
           },
           pmc => {
-              schema => 'bool',
+              schema => ['int*', min=>0],
               default => 0,
           },
           pod => {
-              schema => 'bool',
+              schema => ['int*', min=>0],
               default => 0,
           },
           prefix => {
-              schema => 'bool',
+              schema => ['int*', min=>0],
               default => 0,
           },
           dir => {
@@ -192,8 +192,8 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
       % pmpath -Pd MODULE_OR_PREFIX_NAME
   
-  Sometimes I forgot that `pmpath` has a `-d` option, and often intuitively look
-  for a `pmdir` command.
+  Sometimes I forgot that <prog:pmpath> has a `-d` option, and often intuitively
+  look for a <prog:pmdir> command.
   
   _
       $meta->{args} = { %{ $SPEC{pmpath}{args} } }; # shalow copy
@@ -204,6 +204,38 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   };
   sub pmdir {
       pmpath(@_, prefix=>1, dir=>1);
+  }
+  
+  $SPEC{rel2mod} = {
+      v => 1.1,
+      summary => 'Convert release name (e.g. Foo-Bar-1.23.tar.gz) to '.
+          'module name (Foo::Bar)',
+      args => {
+          releases => {
+              #'x.name.is_plural' => 1,
+              schema => ['array*', of=>'str*'],
+              req => 1,
+              pos => 0,
+              greedy => 1,
+              cmdline_src => 'stdin_or_args',
+          },
+      },
+      result_naked => 1,
+  };
+  sub rel2mod {
+      my %args = @_;
+  
+      #use DD; dd \%args;
+  
+      my @res;
+      for (@{ $args{releases} }) {
+          s!.+/!!; # remove directory path
+          s/(.+)-v?\d.+/$1/;
+          s/-/::/g;
+          push @res, $_;
+      }
+  
+      \@res;
   }
   
   1;
@@ -221,7 +253,7 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =head1 VERSION
   
-  This document describes version 0.61 of App::PMUtils (from Perl distribution App-PMUtils), released on 2016-08-25.
+  This document describes version 0.720 of App::PMUtils (from Perl distribution App-PMUtils), released on 2018-04-03.
   
   =head1 SYNOPSIS
   
@@ -272,9 +304,13 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =item * L<pmxs>
   
+  =item * L<podlist>
+  
   =item * L<podpath>
   
   =item * L<pwd2mod>
+  
+  =item * L<rel2mod>
   
   =back
   
@@ -283,7 +319,11 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   =head1 FUNCTIONS
   
   
-  =head2 pmdir(%args) -> [status, msg, result, meta]
+  =head2 pmdir
+  
+  Usage:
+  
+   pmdir(%args) -> [status, msg, result, meta]
   
   Get directory of locally installed Perl module/prefix.
   
@@ -291,8 +331,8 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
    % pmpath -Pd MODULE_OR_PREFIX_NAME
   
-  Sometimes I forgot that C<pmpath> has a C<-d> option, and often intuitively look
-  for a C<pmdir> command.
+  Sometimes I forgot that L<pmpath> has a C<-d> option, and often intuitively
+  look for a L<pmdir> command.
   
   This function is not exported.
   
@@ -306,11 +346,11 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =item * B<module>* => I<array[perl::modname]>
   
-  =item * B<pm> => I<bool> (default: 1)
+  =item * B<pm> => I<int> (default: 1)
   
-  =item * B<pmc> => I<bool> (default: 0)
+  =item * B<pmc> => I<int> (default: 0)
   
-  =item * B<pod> => I<bool> (default: 0)
+  =item * B<pod> => I<int> (default: 0)
   
   =back
   
@@ -326,7 +366,11 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   Return value:  (any)
   
   
-  =head2 pmpath(%args) -> [status, msg, result, meta]
+  =head2 pmpath
+  
+  Usage:
+  
+   pmpath(%args) -> [status, msg, result, meta]
   
   Get path to locally installed Perl module.
   
@@ -357,13 +401,13 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =item * B<module>* => I<array[perl::modname]>
   
-  =item * B<pm> => I<bool> (default: 1)
+  =item * B<pm> => I<int> (default: 1)
   
-  =item * B<pmc> => I<bool> (default: 0)
+  =item * B<pmc> => I<int> (default: 0)
   
-  =item * B<pod> => I<bool> (default: 0)
+  =item * B<pod> => I<int> (default: 0)
   
-  =item * B<prefix> => I<bool> (default: 0)
+  =item * B<prefix> => I<int> (default: 0)
   
   =back
   
@@ -375,6 +419,27 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   200. Third element (result) is optional, the actual result. Fourth
   element (meta) is called result metadata and is optional, a hash
   that contains extra information.
+  
+  Return value:  (any)
+  
+  
+  =head2 rel2mod
+  
+  Usage:
+  
+   rel2mod(%args) -> any
+  
+  Convert release name (e.g. Foo-Bar-1.23.tar.gz) to module name (Foo::Bar).
+  
+  This function is not exported.
+  
+  Arguments ('*' denotes required arguments):
+  
+  =over 4
+  
+  =item * B<releases>* => I<array[str]>
+  
+  =back
   
   Return value:  (any)
   
@@ -442,165 +507,13 @@ $fatpacked{"App/PMUtils.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'APP
   
   =head1 COPYRIGHT AND LICENSE
   
-  This software is copyright (c) 2016 by perlancar@cpan.org.
+  This software is copyright (c) 2018, 2017, 2016, 2015, 2014 by perlancar@cpan.org.
   
   This is free software; you can redistribute it and/or modify it under
   the same terms as the Perl 5 programming language system itself.
   
   =cut
 APP_PMUTILS
-
-$fatpacked{"Perinci/CmdLine/Any.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'PERINCI_CMDLINE_ANY';
-  package Perinci::CmdLine::Any;
-  
-  our $DATE = '2016-07-20'; # DATE
-  our $VERSION = '0.13'; # VERSION
-  
-  use 5.010001;
-  use strict;
-  use warnings;
-  
-  my %Opts = (
-      -prefer_lite => 1,
-  );
-  
-  sub import {
-      my ($class, %args) = @_;
-      $Opts{$_} = $args{$_} for keys %args;
-  }
-  
-  sub new {
-      my $class = shift;
-  
-      my @mods;
-      my $env = $ENV{PERINCI_CMDLINE_ANY};
-      if ($env) {
-          if ($env eq 'classic') {
-              $env = 'Perinci::CmdLine::Classic';
-          } elsif ($env eq 'lite') {
-              $env = 'Perinci::CmdLine::Lite';
-          }
-          @mods = ($env);
-      } elsif ($Opts{-prefer_lite}) {
-          @mods = qw(Perinci::CmdLine::Lite Perinci::CmdLine::Classic);
-      } else {
-          @mods = qw(Perinci::CmdLine::Classic Perinci::CmdLine::Lite);
-      }
-  
-      for my $i (1..@mods) {
-          my $mod = $mods[$i-1];
-          my $modpm = $mod; $modpm =~ s!::!/!g; $modpm .= ".pm";
-          if ($i == @mods) {
-              require $modpm;
-              return $mod->new(@_);
-          } else {
-              my $res;
-              eval {
-                  require $modpm;
-                  $res = $mod->new(@_);
-              };
-              if ($@) {
-                  next;
-              } else {
-                  return $res;
-              }
-          }
-      }
-  }
-  
-  1;
-  # ABSTRACT: Choose Perinci::CmdLine implementation (::Lite or ::Classic)
-  
-  __END__
-  
-  =pod
-  
-  =encoding UTF-8
-  
-  =head1 NAME
-  
-  Perinci::CmdLine::Any - Choose Perinci::CmdLine implementation (::Lite or ::Classic)
-  
-  =head1 VERSION
-  
-  This document describes version 0.13 of Perinci::CmdLine::Any (from Perl distribution Perinci-CmdLine-Any), released on 2016-07-20.
-  
-  =head1 SYNOPSIS
-  
-  In your command-line script (this will pick ::Lite first):
-  
-   #!perl
-   use Perinci::CmdLine::Any;
-   Perinci::CmdLine::Any->new(url => '/Package/func')->run;
-  
-  In your command-line script (this will pick ::Classic first, and falls back to
-  ::Lite):
-  
-   #!perl
-   use Perinci::CmdLine::Any -prefer_lite=>0;
-   Perinci::CmdLine::Any->new(url => '/Package/func')->run;
-  
-  =head1 DESCRIPTION
-  
-  This module lets you use L<Perinci::CmdLine::Lite> or
-  L<Perinci::CmdLine::Classic>.
-  
-  If you want to force using a specific class, you can set the
-  C<PERINCI_CMDLINE_ANY> environment variable, e.g. the command below will only
-  try to use Perinci::CmdLine::Classic:
-  
-   % PERINCI_CMDLINE_ANY=Perinci::CmdLine::Classic yourapp.pl
-   % PERINCI_CMDLINE_ANY=classic yourapp.pl
-  
-  If you want to prefer to Perinci::CmdLine::Classic (but user will still be able
-  to override using C<PERINCI_CMDLINE_ANY>):
-  
-   use Perinci::CmdLine::Any -prefer_lite => 0;
-  
-  =for Pod::Coverage ^(new)$
-  
-  =head1 ENVIRONMENT
-  
-  =head2 PERINCI_CMDLINE_ANY => str
-  
-  Either specify module name, or C<lite> or C<classic>.
-  
-  =head1 HOMEPAGE
-  
-  Please visit the project's homepage at L<https://metacpan.org/release/Perinci-CmdLine-Any>.
-  
-  =head1 SOURCE
-  
-  Source repository is at L<https://github.com/perlancar/perl-Perinci-CmdLine-Any>.
-  
-  =head1 BUGS
-  
-  Please report any bugs or feature requests on the bugtracker website L<https://rt.cpan.org/Public/Dist/Display.html?Name=Perinci-CmdLine-Any>
-  
-  When submitting a bug or request, please include a test-file or a
-  patch to an existing test-file that illustrates the bug or desired
-  feature.
-  
-  =head1 SEE ALSO
-  
-  L<Perinci::CmdLine::Lite>, L<Perinci::CmdLine::Classic>
-  
-  Another alternative backend, but not available through Perinci::CmdLine::Any
-  since it works by generating script instead: L<Perinci::CmdLine::Inline>
-  
-  =head1 AUTHOR
-  
-  perlancar <perlancar@cpan.org>
-  
-  =head1 COPYRIGHT AND LICENSE
-  
-  This software is copyright (c) 2016 by perlancar@cpan.org.
-  
-  This is free software; you can redistribute it and/or modify it under
-  the same terms as the Perl 5 programming language system itself.
-  
-  =cut
-PERINCI_CMDLINE_ANY
 
 s/^  //mg for values %fatpacked;
 
@@ -638,10 +551,13 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/Users/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
+#!/home/gugod/perl5/perlbrew/perls/v18/bin/perl
 
-our $DATE = '2016-08-25'; # DATE
-our $VERSION = '0.61'; # VERSION
+eval 'exec /home/gugod/perl5/perlbrew/perls/v18/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
+
+our $DATE = '2018-04-03'; # DATE
+our $VERSION = '0.720'; # VERSION
 
 use 5.010;
 use strict;
@@ -671,7 +587,7 @@ pmdir - Get directory of locally installed Perl module/prefix
 
 =head1 VERSION
 
-This document describes version 0.61 of pmdir (from Perl distribution App-PMUtils), released on 2016-08-25.
+This document describes version 0.720 of pmdir (from Perl distribution App-PMUtils), released on 2018-04-03.
 
 =head1 SYNOPSIS
 
@@ -693,9 +609,59 @@ Works with prefix too:
 
 =head1 DESCRIPTION
 
+=for BEGIN_BLOCK: protip_cdpm
+
+Pro-tip: install this bash function to be able to cd quickly to directory of
+Perl module/prefix (tab completion is also provided):
+
+# EXAMPLE: share/cdpm.bash
+
+Afterwards, you can:
+
+ % cdpm di/zi/pl<tab>
+ % cdpm Dist/Zilla/Plugin/ _
+
+=for END_BLOCK: protip_cdpm
+
 =head1 OPTIONS
 
 C<*> marks required options.
+
+=head2 Main options
+
+=over
+
+=item B<--abs>, B<-P>
+
+Absolutify each path.
+
+=item B<--module-json>=I<s>
+
+See C<--module>.
+
+=item B<--module>=I<s@>*
+
+Can be specified multiple times.
+
+=item B<--pm>=I<s>
+
+Default value:
+
+ 1
+
+=item B<--pmc>=I<s>
+
+Default value:
+
+ 0
+
+=item B<--pod>=I<s>
+
+Default value:
+
+ 0
+
+=back
 
 =head2 Configuration options
 
@@ -770,27 +736,9 @@ you want to pipe the result for more post-processing. In this case you can use
 
 =over
 
-=item B<--abs>, B<-P>
-
-Absolutify each path.
-
 =item B<--help>, B<-h>, B<-?>
 
 Display help message and exit.
-
-=item B<--module-json>=I<s>
-
-See C<--module>.
-
-=item B<--module>=I<s@>*
-
-Can be specified multiple times.
-
-=item B<--no-pm>
-
-=item B<--pmc>
-
-=item B<--pod>
 
 =item B<--version>, B<-v>
 
@@ -809,16 +757,12 @@ To activate bash completion for this script, put:
 
  complete -C pmdir pmdir
 
-in your bash startup (e.g. C<~/.bashrc>). Your next shell session will then
+in your bash startup (e.g. F<~/.bashrc>). Your next shell session will then
 recognize tab completion for the command. Or, you can also directly execute the
 line above in your shell to activate immediately.
 
-It is recommended, however, that you install L<shcompgen> which allows you to
-activate completion scripts for several kinds of scripts on multiple shells.
-Some CPAN distributions (those that are built with
-L<Dist::Zilla::Plugin::GenShellCompletion>) will even automatically enable shell
-completion for their included scripts (using C<shcompgen>) at installation time,
-so you can immadiately have tab completion.
+It is recommended, however, that you install modules using L<cpanm-shcompgen>
+which can activate shell completion for scripts immediately.
 
 =head2 tcsh
 
@@ -826,15 +770,15 @@ To activate tcsh completion for this script, put:
 
  complete pmdir 'p/*/`pmdir`/'
 
-in your tcsh startup (e.g. C<~/.tcshrc>). Your next shell session will then
+in your tcsh startup (e.g. F<~/.tcshrc>). Your next shell session will then
 recognize tab completion for the command. Or, you can also directly execute the
 line above in your shell to activate immediately.
 
-It is also recommended to install C<shcompgen> (see above).
+It is also recommended to install L<shcompgen> (see above).
 
 =head2 other shells
 
-For fish and zsh, install C<shcompgen> as described above.
+For fish and zsh, install L<shcompgen> as described above.
 
 =head1 CONFIGURATION FILE
 
@@ -858,7 +802,7 @@ List of available configuration parameters:
  format (see --format)
  module (see --module)
  naked_res (see --naked-res)
- pm (see --no-pm)
+ pm (see --pm)
  pmc (see --pmc)
  pod (see --pod)
 
@@ -866,29 +810,15 @@ List of available configuration parameters:
 
 =head2 PMDIR_OPT => str
 
-Specify additional command-line options
+Specify additional command-line options.
 
 =head1 FILES
 
-~/.config/pmdir.conf
+F<~/.config/pmdir.conf>
 
-~/pmdir.conf
+F<~/pmdir.conf>
 
-/etc/pmdir.conf
-
-=for BEGIN_BLOCK: protip_cdpm
-
-Pro-tip: install this bash function to be able to cd quickly to directory of
-Perl module/prefix (tab completion is also provided):
-
-# EXAMPLE: share/cdpm.bash
-
-Afterwards, you can:
-
- % cdpm di/zi/pl<tab>
- % cdpm Dist/Zilla/Plugin/ _
-
-=for END_BLOCK: protip_cdpm
+F</etc/pmdir.conf>
 
 =head1 HOMEPAGE
 
@@ -916,7 +846,7 @@ perlancar <perlancar@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2016 by perlancar@cpan.org.
+This software is copyright (c) 2018, 2017, 2016, 2015, 2014 by perlancar@cpan.org.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

@@ -41,7 +41,10 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/Users/gugod/perl5/perlbrew/perls/perl-5.22.0/bin/perl
+#!/home/gugod/perl5/perlbrew/perls/v18/bin/perl
+
+eval 'exec /home/gugod/perl5/perlbrew/perls/v18/bin/perl  -S $0 ${1+"$@"}'
+    if 0; # not running under some shell
 require App::Perldoc::Search;
 App::Perldoc::Search->run( @ARGV );
 exit;
