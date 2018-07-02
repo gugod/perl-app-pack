@@ -11155,22 +11155,22 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   package URI;
   
   use strict;
-  use warnings;
+  use vars qw($VERSION);
+  $VERSION = "1.60";
   
-  our $VERSION = '1.74';
-  
-  our ($ABS_REMOTE_LEADING_DOTS, $ABS_ALLOW_RELATIVE_SCHEME, $DEFAULT_QUERY_FORM_DELIMITER);
+  use vars qw($ABS_REMOTE_LEADING_DOTS $ABS_ALLOW_RELATIVE_SCHEME $DEFAULT_QUERY_FORM_DELIMITER);
   
   my %implements;  # mapping from scheme to implementor class
   
   # Some "official" character classes
   
-  our $reserved   = q(;/?:@&=+$,[]);
-  our $mark       = q(-_.!~*'());                                    #'; emacs
-  our $unreserved = "A-Za-z0-9\Q$mark\E";
-  our $uric       = quotemeta($reserved) . $unreserved . "%";
+  use vars qw($reserved $mark $unreserved $uric $scheme_re);
+  $reserved   = q(;/?:@&=+$,[]);
+  $mark       = q(-_.!~*'());                                    #'; emacs
+  $unreserved = "A-Za-z0-9\Q$mark\E";
+  $uric       = quotemeta($reserved) . $unreserved . "%";
   
-  our $scheme_re  = '[a-zA-Z][a-zA-Z0-9.+\-]*';
+  $scheme_re  = '[a-zA-Z][a-zA-Z0-9.+\-]*';
   
   use Carp ();
   use URI::Escape ();
@@ -11248,7 +11248,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
       return $str;
   }
   
-  my %require_attempted;
   
   sub implementor
   {
@@ -11283,14 +11282,10 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
       no strict 'refs';
       # check we actually have one for the scheme:
       unless (@{"${ic}::ISA"}) {
-          if (not exists $require_attempted{$ic}) {
-              # Try to load it
-              my $_old_error = $@;
-              eval "require $ic";
-              die $@ if $@ && $@ !~ /Can\'t locate.*in \@INC/;
-              $@ = $_old_error;
-          }
-          return undef unless @{"${ic}::ISA"};
+          # Try to load it
+          eval "require $ic";
+          die $@ if $@ && $@ !~ /Can\'t locate.*in \@INC/;
+          return unless @{"${ic}::ISA"};
       }
   
       $ic->_init_implementor($scheme);
@@ -11314,7 +11309,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
       bless \$other, ref $self;
   }
   
-  sub TO_JSON { ${$_[0]} }
   
   sub _no_scheme_ok { 0 }
   
@@ -11323,7 +11317,7 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
       my $self = shift;
   
       unless (@_) {
-  	return undef unless $$self =~ /^($scheme_re):/o;
+  	return unless $$self =~ /^($scheme_re):/o;
   	return $1;
       }
   
@@ -11353,14 +11347,10 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   sub scheme
   {
       my $scheme = shift->_scheme(@_);
-      return undef unless defined $scheme;
+      return unless defined $scheme;
       lc($scheme);
   }
   
-  sub has_recognized_scheme {
-      my $self = shift;
-      return ref($self) !~ /^URI::_(?:foreign|generic)\z/;
-  }
   
   sub opaque
   {
@@ -11392,14 +11382,14 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
       $old_opaque;
   }
   
-  sub path { goto &opaque }  # alias
+  *path = \&opaque;  # alias
   
   
   sub fragment
   {
       my $self = shift;
       unless (@_) {
-  	return undef unless $$self =~ /\#(.*)/s;
+  	return unless $$self =~ /\#(.*)/s;
   	return $1;
       }
   
@@ -11511,8 +11501,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   
   =head1 SYNOPSIS
   
-   use URI;
-  
    $u1 = URI->new("http://www.perl.com");
    $u2 = URI->new("foo", "http");
    $u3 = $u2->abs($u1);
@@ -11582,11 +11570,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   
   The constructor determines the scheme, maps this to an appropriate
   URI subclass, constructs a new object of that class and returns it.
-  
-  If the scheme isn't one of those that URI recognizes, you still get
-  an URI object back that you can access the generic methods on.  The
-  C<< $uri->has_recognized_scheme >> method can be used to test for
-  this.
   
   The $scheme argument is only used when $str is a
   relative URI.  It can be either a simple string that
@@ -11670,14 +11653,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   returned by $uri->scheme is always lowercase.  If you want the scheme
   just as it was written in the URI in its original case,
   you can use the $uri->_scheme method instead.
-  
-  =item $uri->has_recognized_scheme
-  
-  Returns TRUE if the URI scheme is one that URI recognizes.
-  
-  It will also be TRUE for relative URLs where a recognized
-  scheme was provided to the constructor, even if C<< $uri->scheme >>
-  returns C<undef> for these.
   
   =item $uri->opaque
   
@@ -11764,7 +11739,7 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   
   The following methods are available to schemes that use the
   common/generic syntax for hierarchical namespaces.  The descriptions of
-  schemes below indicate which these are.  Unrecognized schemes are
+  schemes below indicate which these are.  Unknown schemes are
   assumed to support the generic syntax, and therefore the following
   methods:
   
@@ -12151,12 +12126,6 @@ $fatpacked{"URI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI';
   generic and server methods. In addition, they provide methods to
   access the userinfo sub-components: $uri->user and $uri->password.
   
-  =item B<sftp>:
-  
-  C<URI> objects belonging to the sftp scheme support the common,
-  generic and server methods. In addition, they provide methods to
-  access the userinfo sub-components: $uri->user and $uri->password.
-  
   =item B<urn>:
   
   The syntax of Uniform Resource Names is specified in RFC 2141.  C<URI>
@@ -12318,9 +12287,7 @@ URI
 
 $fatpacked{"URI/Escape.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_ESCAPE';
   package URI::Escape;
-  
   use strict;
-  use warnings;
   
   =head1 NAME
   
@@ -12456,7 +12423,8 @@ $fatpacked{"URI/Escape.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
   
   =cut
   
-  use Exporter 5.57 'import';
+  require Exporter;
+  our @ISA = qw(Exporter);
   our %escapes;
   our @EXPORT = qw(uri_escape uri_unescape uri_escape_utf8);
   our @EXPORT_OK = qw(%escapes);
@@ -12500,7 +12468,6 @@ $fatpacked{"URI/Escape.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
   
   sub uri_escape_utf8 {
       my $text = shift;
-      return undef unless defined $text;
       utf8::encode($text);
       return uri_escape($text, @_);
   }
@@ -12522,19 +12489,8 @@ $fatpacked{"URI/Escape.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
       $str;
   }
   
-  # XXX FIXME escape_char is buggy as it assigns meaning to the string's storage format.
   sub escape_char {
-      # Old versions of utf8::is_utf8() didn't properly handle magical vars (e.g. $1).
-      # The following forces a fetch to occur beforehand.
-      my $dummy = substr($_[0], 0, 0);
-  
-      if (utf8::is_utf8($_[0])) {
-          my $s = shift;
-          utf8::encode($s);
-          unshift(@_, $s);
-      }
-  
-      return join '', @URI::Escape::escapes{split //, $_[0]};
+      return join '', @URI::Escape::escapes{$_[0] =~ /(\C)/g};
   }
   
   1;
@@ -12630,13 +12586,13 @@ $fatpacked{"URI/Heuristic.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   =cut
   
   use strict;
-  use warnings;
   
-  use Exporter 5.57 'import';
-  our @EXPORT_OK = qw(uf_uri uf_uristr uf_url uf_urlstr);
-  our $VERSION = "4.20";
+  use vars qw(@EXPORT_OK $VERSION $MY_COUNTRY %LOCAL_GUESSING $DEBUG);
   
-  our ($MY_COUNTRY, $DEBUG);
+  require Exporter;
+  *import = \&Exporter::import;
+  @EXPORT_OK = qw(uf_uri uf_uristr uf_url uf_urlstr);
+  $VERSION = "4.20";
   
   sub MY_COUNTRY() {
       for ($MY_COUNTRY) {
@@ -12674,7 +12630,7 @@ $fatpacked{"URI/Heuristic.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
       }
   }
   
-  our %LOCAL_GUESSING =
+  %LOCAL_GUESSING =
   (
    'us' => [qw(www.ACME.gov www.ACME.mil)],
    'gb' => [qw(www.ACME.co.uk www.ACME.org.uk www.ACME.ac.uk)],
@@ -12802,12 +12758,9 @@ $fatpacked{"URI/IRI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_IRI
   # Experimental
   
   use strict;
-  use warnings;
   use URI ();
   
   use overload '""' => sub { shift->as_string };
-  
-  our $VERSION = '1.74';
   
   sub new {
       my($class, $uri, $scheme) = @_;
@@ -12829,9 +12782,9 @@ $fatpacked{"URI/IRI.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_IRI
       return $self->{uri}->as_iri;
   }
   
-  our $AUTOLOAD;
   sub AUTOLOAD
   {
+      use vars qw($AUTOLOAD);
       my $method = substr($AUTOLOAD, rindex($AUTOLOAD, '::')+2);
   
       # We create the function here so that it will not need to be
@@ -12850,9 +12803,6 @@ $fatpacked{"URI/QueryParam.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'
   package URI::QueryParam;
   
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
   
   sub URI::_query::query_param {
       my $self = shift;
@@ -12990,17 +12940,6 @@ $fatpacked{"URI/QueryParam.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'
   array references, then the array is dereferenced to get the actual
   values.
   
-  Please note that you can supply multiple values to this method, but you cannot
-  supply multiple keys.
-  
-  Do this:
-  
-      $uri->query_param( widget_id => 1, 5, 9 );
-  
-  Do NOT do this:
-  
-      $uri->query_param( widget_id => 1, frobnicator_id => 99 );
-  
   =item $u->query_param_append($key, $value,...)
   
   Adds new parameters with the given
@@ -13060,12 +12999,11 @@ $fatpacked{"URI/Split.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_S
   package URI::Split;
   
   use strict;
-  use warnings;
   
-  our $VERSION = '1.74';
-  
-  use Exporter 5.57 'import';
-  our @EXPORT_OK = qw(uri_split uri_join);
+  use vars qw(@ISA @EXPORT_OK);
+  require Exporter;
+  @ISA = qw(Exporter);
+  @EXPORT_OK = qw(uri_split uri_join);
   
   use URI::Escape ();
   
@@ -13159,18 +13097,20 @@ URI_SPLIT
 $fatpacked{"URI/URL.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URL';
   package URI::URL;
   
+  require URI::WithBase;
+  @ISA=qw(URI::WithBase);
+  
   use strict;
-  use warnings;
+  use vars qw(@EXPORT $VERSION);
   
-  use parent 'URI::WithBase';
-  
-  our $VERSION = "5.04";
+  $VERSION = "5.04";
   
   # Provide as much as possible of the old URI::URL interface for backwards
   # compatibility...
   
-  use Exporter 5.57 'import';
-  our @EXPORT = qw(url);
+  require Exporter;
+  *import = \&Exporter::import;
+  @EXPORT = qw(url);
   
   # Easy to use constructor
   sub url ($;$) { URI::URL->new(@_); }
@@ -13262,7 +13202,7 @@ $fatpacked{"URI/URL.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URL
   {
       my $self = shift;
       my @p = $self->path_segments;
-      return undef unless ref($p[-1]);
+      return unless ref($p[-1]);
       @p = @{$p[-1]};
       shift @p;
       join(";", @p);
@@ -13301,7 +13241,7 @@ $fatpacked{"URI/URL.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URL
   		Carp::croak("$mess (you must call equery)");
   	    }
   	}
-  	# Now it should be safe to unescape the string without losing
+  	# Now it should be safe to unescape the string without loosing
   	# information
   	return uri_unescape($old);
       }
@@ -13466,12 +13406,10 @@ $fatpacked{"URI/WithBase.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'UR
   package URI::WithBase;
   
   use strict;
-  use warnings;
-  
+  use vars qw($AUTOLOAD $VERSION);
   use URI;
-  use Scalar::Util 'blessed';
   
-  our $VERSION = "2.20";
+  $VERSION = "2.20";
   
   use overload '""' => "as_string", fallback => 1;
   
@@ -13481,7 +13419,7 @@ $fatpacked{"URI/WithBase.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'UR
   {
       my($class, $uri, $base) = @_;
       my $ibase = $base;
-      if ($base && blessed($base) && $base->isa(__PACKAGE__)) {
+      if ($base && ref($base) && UNIVERSAL::isa($base, __PACKAGE__)) {
   	$base = $base->abs;
   	$ibase = $base->[0];
       }
@@ -13505,11 +13443,10 @@ $fatpacked{"URI/WithBase.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'UR
   sub eq
   {
       my($self, $other) = @_;
-      $other = $other->[0] if blessed($other) and $other->isa(__PACKAGE__);
+      $other = $other->[0] if UNIVERSAL::isa($other, __PACKAGE__);
       $self->[0]->eq($other);
   }
   
-  our $AUTOLOAD;
   sub AUTOLOAD
   {
       my $self = shift;
@@ -13642,28 +13579,21 @@ URI_WITHBASE
 $fatpacked{"URI/_foreign.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__FOREIGN';
   package URI::_foreign;
   
-  use strict;
-  use warnings;
-  
-  use parent 'URI::_generic';
-  
-  our $VERSION = '1.74';
+  require URI::_generic;
+  @ISA=qw(URI::_generic);
   
   1;
 URI__FOREIGN
 
 $fatpacked{"URI/_generic.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__GENERIC';
   package URI::_generic;
+  require URI;
+  require URI::_query;
+  @ISA=qw(URI URI::_query);
   
   use strict;
-  use warnings;
-  
-  use parent qw(URI URI::_query);
-  
   use URI::Escape qw(uri_unescape);
   use Carp ();
-  
-  our $VERSION = '1.74';
   
   my $ACHAR = $URI::uric;  $ACHAR =~ s,\\[/?],,g;
   my $PCHAR = $URI::uric;  $PCHAR =~ s,\\[?],,g;
@@ -13806,8 +13736,7 @@ $fatpacked{"URI/_generic.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'UR
   	my $abs = $base->clone;
   	my $query = $self->query;
   	$abs->query($query) if defined $query;
-  	my $fragment = $self->fragment;
-  	$abs->fragment($fragment) if defined $fragment;
+  	$abs->fragment($self->fragment);
   	return $abs;
       }
   
@@ -13918,15 +13847,11 @@ $fatpacked{"URI/_idna.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__
   # based on Python-2.6.4/Lib/encodings/idna.py
   
   use strict;
-  use warnings;
-  
   use URI::_punycode qw(encode_punycode decode_punycode);
   use Carp qw(croak);
   
-  our $VERSION = '1.74';
-  
   BEGIN {
-    *URI::_idna::_ENV_::JOIN_LEAKS_UTF8_FLAGS = "$]" < 5.008_003
+    *URI::_idna::_ENV_::JOIN_LEAKS_UTF8_FLAGS = $] < 5.008_003
       ? sub () { 1 }
       : sub () { 0 }
     ;
@@ -14013,9 +13938,9 @@ $fatpacked{"URI/_ldap.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__
   package URI::_ldap;
   
   use strict;
-  use warnings;
   
-  our $VERSION = '1.74';
+  use vars qw($VERSION);
+  $VERSION = "1.12";
   
   use URI::Escape qw(uri_unescape);
   
@@ -14055,7 +13980,7 @@ $fatpacked{"URI/_ldap.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__
   sub _scope {
     my $self = shift;
     my $old = _ldap_elem($self,1, @_);
-    return undef unless defined wantarray && defined $old;
+    return unless defined wantarray && defined $old;
     uri_unescape($old);
   }
   
@@ -14068,7 +13993,7 @@ $fatpacked{"URI/_ldap.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__
   sub _filter {
     my $self = shift;
     my $old = _ldap_elem($self,2, @_);
-    return undef unless defined wantarray && defined $old;
+    return unless defined wantarray && defined $old;
     uri_unescape($old); # || "(objectClass=*)";
   }
   
@@ -14151,12 +14076,9 @@ URI__LDAP
 $fatpacked{"URI/_login.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__LOGIN';
   package URI::_login;
   
-  use strict;
-  use warnings;
-  
-  use parent qw(URI::_server URI::_userpass);
-  
-  our $VERSION = '1.74';
+  require URI::_server;
+  require URI::_userpass;
+  @ISA = qw(URI::_server URI::_userpass);
   
   # Generic terminal logins.  This is used as a base class for 'telnet',
   # 'tn3270', and 'rlogin' URL schemes.
@@ -14168,11 +14090,10 @@ $fatpacked{"URI/_punycode.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   package URI::_punycode;
   
   use strict;
-  use warnings;
+  our $VERSION = "0.04";
   
-  our $VERSION = '1.74';
-  
-  use Exporter 'import';
+  require Exporter;
+  our @ISA    = qw(Exporter);
   our @EXPORT = qw(encode_punycode decode_punycode);
   
   use integer;
@@ -14313,73 +14234,59 @@ $fatpacked{"URI/_punycode.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   1;
   __END__
   
-  =encoding utf8
-  
   =head1 NAME
   
   URI::_punycode - encodes Unicode string in Punycode
   
   =head1 SYNOPSIS
   
-    use strict;
-    use warnings;
-    use utf8;
-  
-    use URI::_punycode qw(encode_punycode decode_punycode);
-  
-    # encode a unicode string
-    my $punycode = encode_punycode('http://☃.net'); # http://.net-xc8g
-    $punycode = encode_punycode('bücher'); # bcher-kva
-    $punycode = encode_punycode('他们为什么不说中文'); # ihqwcrb4cv8a8dqg056pqjye
-  
-    # decode a punycode string back into a unicode string
-    my $unicode = decode_punycode('http://.net-xc8g'); # http://☃.net
-    $unicode = decode_punycode('bcher-kva'); # bücher
-    $unicode = decode_punycode('ihqwcrb4cv8a8dqg056pqjye'); # 他们为什么不说中文
+    use URI::_punycode;
+    $punycode = encode_punycode($unicode);
+    $unicode  = decode_punycode($punycode);
   
   =head1 DESCRIPTION
   
-  L<URI::_punycode> is a module to encode / decode Unicode strings into
-  L<Punycode|https://tools.ietf.org/html/rfc3492>, an efficient
-  encoding of Unicode for use with L<IDNA|https://tools.ietf.org/html/rfc5890>.
+  URI::_punycode is a module to encode / decode Unicode strings into
+  Punycode, an efficient encoding of Unicode for use with IDNA.
+  
+  This module requires Perl 5.6.0 or over to handle UTF8 flagged Unicode
+  strings.
   
   =head1 FUNCTIONS
   
-  All functions throw exceptions on failure. You can C<catch> them with
-  L<Syntax::Keyword::Try> or L<Try::Tiny>. The following functions are exported
-  by default.
+  This module exports following functions by default.
   
-  =head2 encode_punycode
+  =over 4
   
-    my $punycode = encode_punycode('http://☃.net');  # http://.net-xc8g
-    $punycode = encode_punycode('bücher'); # bcher-kva
-    $punycode = encode_punycode('他们为什么不说中文') # ihqwcrb4cv8a8dqg056pqjye
+  =item encode_punycode
   
-  Takes a Unicode string (UTF8-flagged variable) and returns a Punycode
+    $punycode = encode_punycode($unicode);
+  
+  takes Unicode string (UTF8-flagged variable) and returns Punycode
   encoding for it.
   
-  =head2 decode_punycode
+  =item decode_punycode
   
-    my $unicode = decode_punycode('http://.net-xc8g'); # http://☃.net
-    $unicode = decode_punycode('bcher-kva'); # bücher
-    $unicode = decode_punycode('ihqwcrb4cv8a8dqg056pqjye'); # 他们为什么不说中文
+    $unicode = decode_punycode($punycode)
   
-  Takes a Punycode encoding and returns original Unicode string.
+  takes Punycode encoding and returns original Unicode string.
+  
+  =back
+  
+  These functions throw exceptions on failure. You can catch 'em via
+  C<eval>.
   
   =head1 AUTHOR
   
-  Tatsuhiko Miyagawa <F<miyagawa@bulknews.net>> is the author of
-  L<IDNA::Punycode> which was the basis for this module.
-  
-  =head1 SEE ALSO
-  
-  L<IDNA::Punycode>, L<RFC 3492|https://tools.ietf.org/html/rfc3492>,
-  L<RFC 5891|https://tools.ietf.org/html/rfc5891>
-  
-  =head1 COPYRIGHT AND LICENSE
+  Tatsuhiko Miyagawa E<lt>miyagawa@bulknews.netE<gt> is the author of
+  IDNA::Punycode v0.02 which was the basis for this module.
   
   This library is free software; you can redistribute it and/or modify
   it under the same terms as Perl itself.
+  
+  =head1 SEE ALSO
+  
+  L<IDNA::Punycode>, RFC 3492
   
   =cut
 URI__PUNYCODE
@@ -14388,12 +14295,8 @@ $fatpacked{"URI/_query.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
   package URI::_query;
   
   use strict;
-  use warnings;
-  
   use URI ();
   use URI::Escape qw(uri_unescape);
-  
-  our $VERSION = '1.74';
   
   sub query
   {
@@ -14427,7 +14330,7 @@ $fatpacked{"URI/_query.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
           }
           elsif (ref($r) eq "HASH") {
               $delim = $_[1];
-              @_ = map { $_ => $r->{$_} } sort keys %$r;
+              @_ = %$r;
           }
           $delim = pop if @_ % 2;
   
@@ -14479,7 +14382,7 @@ $fatpacked{"URI/_query.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
   }
   
   # Some URI::URL compatibility stuff
-  sub equery { goto &query }
+  *equery = \&query;
   
   1;
 URI__QUERY
@@ -14491,14 +14394,10 @@ $fatpacked{"URI/_segment.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'UR
   # a string too.
   
   use strict;
-  use warnings;
-  
   use URI::Escape qw(uri_unescape);
   
   use overload '""' => sub { $_[0]->[0] },
                fallback => 1;
-  
-  our $VERSION = '1.74';
   
   sub new
   {
@@ -14513,15 +14412,11 @@ URI__SEGMENT
 
 $fatpacked{"URI/_server.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI__SERVER';
   package URI::_server;
+  require URI::_generic;
+  @ISA=qw(URI::_generic);
   
   use strict;
-  use warnings;
-  
-  use parent 'URI::_generic';
-  
   use URI::Escape qw(uri_unescape);
-  
-  our $VERSION = '1.74';
   
   sub _uric_escape {
       my($class, $str) = @_;
@@ -14537,7 +14432,7 @@ $fatpacked{"URI/_server.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI
   }
   
   sub _host_escape {
-      return unless $_[0] =~ /[^$URI::uric]/;
+      return unless $_[0] =~ /[^URI::uric]/;
       eval {
   	require URI::_idna;
   	$_[0] = URI::_idna::encode($_[0]);
@@ -14684,11 +14579,7 @@ $fatpacked{"URI/_userpass.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   package URI::_userpass;
   
   use strict;
-  use warnings;
-  
   use URI::Escape qw(uri_unescape);
-  
-  our $VERSION = '1.74';
   
   sub user
   {
@@ -14708,7 +14599,7 @@ $fatpacked{"URI/_userpass.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   	    $self->userinfo("$new$pass");
   	}
       }
-      return undef unless defined $info;
+      return unless defined $info;
       $info =~ s/:.*//;
       uri_unescape($info);
   }
@@ -14730,8 +14621,8 @@ $fatpacked{"URI/_userpass.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   	    $self->userinfo("$user:$new");
   	}
       }
-      return undef unless defined $info;
-      return undef unless $info =~ s/^[^:]*://;
+      return unless defined $info;
+      return unless $info =~ s/^[^:]*://;
       uri_unescape($info);
   }
   
@@ -14741,12 +14632,10 @@ URI__USERPASS
 $fatpacked{"URI/data.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_DATA';
   package URI::data;  # RFC 2397
   
+  require URI;
+  @ISA=qw(URI);
+  
   use strict;
-  use warnings;
-  
-  use parent 'URI';
-  
-  our $VERSION = '1.74';
   
   use MIME::Base64 qw(encode_base64 decode_base64);
   use URI::Escape  qw(uri_unescape);
@@ -14887,18 +14776,19 @@ $fatpacked{"URI/file.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FI
   package URI::file;
   
   use strict;
-  use warnings;
+  use vars qw(@ISA $VERSION $DEFAULT_AUTHORITY %OS_CLASS);
   
-  use parent 'URI::_generic';
-  our $VERSION = "4.21";
+  require URI::_generic;
+  @ISA = qw(URI::_generic);
+  $VERSION = "4.21";
   
   use URI::Escape qw(uri_unescape);
   
-  our $DEFAULT_AUTHORITY = "";
+  $DEFAULT_AUTHORITY = "";
   
   # Map from $^O values to implementation classes.  The Unix
   # class is the default.
-  our %OS_CLASS = (
+  %OS_CLASS = (
        os2     => "OS2",
        mac     => "Mac",
        MacOS   => "Mac",
@@ -15217,11 +15107,7 @@ $fatpacked{"URI/file/Base.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
   package URI::file::Base;
   
   use strict;
-  use warnings;
-  
   use URI::Escape qw();
-  
-  our $VERSION = '1.74';
   
   sub new
   {
@@ -15281,8 +15167,8 @@ $fatpacked{"URI/file/Base.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'U
       return 1 if $host eq "localhost";
       eval {
   	require Net::Domain;
-  	lc(Net::Domain::hostfqdn() || '') eq $host ||
-  	lc(Net::Domain::hostname() || '') eq $host;
+  	lc(Net::Domain::hostfqdn()) eq $host ||
+  	lc(Net::Domain::hostname()) eq $host;
       };
   }
   
@@ -15303,12 +15189,8 @@ URI_FILE_BASE
 $fatpacked{"URI/file/FAT.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_FAT';
   package URI::file::FAT;
   
-  use strict;
-  use warnings;
-  
-  use parent 'URI::file::Win32';
-  
-  our $VERSION = '1.74';
+  require URI::file::Win32;
+  @ISA=qw(URI::file::Win32);
   
   sub fix_path
   {
@@ -15333,14 +15215,13 @@ URI_FILE_FAT
 $fatpacked{"URI/file/Mac.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_MAC';
   package URI::file::Mac;
   
+  require URI::file::Base;
+  @ISA=qw(URI::file::Base);
+  
   use strict;
-  use warnings;
-  
-  use parent 'URI::file::Base';
-  
   use URI::Escape qw(uri_unescape);
   
-  our $VERSION = '1.74';
+  
   
   sub _file_extract_path
   {
@@ -15457,12 +15338,8 @@ URI_FILE_MAC
 $fatpacked{"URI/file/OS2.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_OS2';
   package URI::file::OS2;
   
-  use strict;
-  use warnings;
-  
-  use parent 'URI::file::Win32';
-  
-  our $VERSION = '1.74';
+  require URI::file::Win32;
+  @ISA=qw(URI::file::Win32);
   
   # The Win32 version translates k:/foo to file://k:/foo  (?!)
   # We add an empty host
@@ -15492,12 +15369,10 @@ URI_FILE_OS2
 $fatpacked{"URI/file/QNX.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_QNX';
   package URI::file::QNX;
   
+  require URI::file::Unix;
+  @ISA=qw(URI::file::Unix);
+  
   use strict;
-  use warnings;
-  
-  use parent 'URI::file::Unix';
-  
-  our $VERSION = '1.74';
   
   sub _file_extract_path
   {
@@ -15515,14 +15390,11 @@ URI_FILE_QNX
 $fatpacked{"URI/file/Unix.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_UNIX';
   package URI::file::Unix;
   
+  require URI::file::Base;
+  @ISA=qw(URI::file::Base);
+  
   use strict;
-  use warnings;
-  
-  use parent 'URI::file::Base';
-  
   use URI::Escape qw(uri_unescape);
-  
-  our $VERSION = '1.74';
   
   sub _file_extract_path
   {
@@ -15576,14 +15448,11 @@ URI_FILE_UNIX
 $fatpacked{"URI/file/Win32.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FILE_WIN32';
   package URI::file::Win32;
   
+  require URI::file::Base;
+  @ISA=qw(URI::file::Base);
+  
   use strict;
-  use warnings;
-  
-  use parent 'URI::file::Base';
-  
   use URI::Escape qw(uri_unescape);
-  
-  our $VERSION = '1.74';
   
   sub _file_extract_authority
   {
@@ -15666,12 +15535,11 @@ URI_FILE_WIN32
 $fatpacked{"URI/ftp.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_FTP';
   package URI::ftp;
   
+  require URI::_server;
+  require URI::_userpass;
+  @ISA=qw(URI::_server URI::_userpass);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent qw(URI::_server URI::_userpass);
   
   sub default_port { 21 }
   
@@ -15715,13 +15583,10 @@ URI_FTP
 $fatpacked{"URI/gopher.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_GOPHER';
   package URI::gopher;  # <draft-murali-url-gopher>, Dec 4, 1996
   
+  require URI::_server;
+  @ISA=qw(URI::_server);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_server';
-  
   use URI::Escape qw(uri_unescape);
   
   #  A Gopher URL follows the common internet scheme syntax as defined in 
@@ -15776,7 +15641,7 @@ $fatpacked{"URI/gopher.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_
       $gtype;
   }
   
-  sub gtype { goto &gopher_type }  # URI::URL compatibility
+  *gtype = \&gopher_type;  # URI::URL compatibility
   
   sub selector { shift->_gfield(0, @_) }
   sub search   { shift->_gfield(1, @_) }
@@ -15815,12 +15680,10 @@ URI_GOPHER
 $fatpacked{"URI/http.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_HTTP';
   package URI::http;
   
+  require URI::_server;
+  @ISA=qw(URI::_server);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_server';
   
   sub default_port { 80 }
   
@@ -15844,13 +15707,8 @@ URI_HTTP
 
 $fatpacked{"URI/https.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_HTTPS';
   package URI::https;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::http';
+  require URI::http;
+  @ISA=qw(URI::http);
   
   sub default_port { 443 }
   
@@ -15867,11 +15725,13 @@ $fatpacked{"URI/ldap.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_LD
   package URI::ldap;
   
   use strict;
-  use warnings;
   
-  our $VERSION = '1.74';
+  use vars qw(@ISA $VERSION);
+  $VERSION = "1.12";
   
-  use parent qw(URI::_ldap URI::_server);
+  require URI::_server;
+  require URI::_ldap;
+  @ISA=qw(URI::_ldap URI::_server);
   
   sub default_port { 389 }
   
@@ -15986,11 +15846,12 @@ $fatpacked{"URI/ldapi.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_L
   package URI::ldapi;
   
   use strict;
-  use warnings;
   
-  our $VERSION = '1.74';
+  use vars qw(@ISA);
   
-  use parent qw(URI::_ldap URI::_generic);
+  require URI::_generic;
+  require URI::_ldap;
+  @ISA=qw(URI::_ldap URI::_generic);
   
   require URI::Escape;
   
@@ -16016,13 +15877,8 @@ URI_LDAPI
 
 $fatpacked{"URI/ldaps.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_LDAPS';
   package URI::ldaps;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::ldap';
+  require URI::ldap;
+  @ISA=qw(URI::ldap);
   
   sub default_port { 636 }
   
@@ -16034,12 +15890,11 @@ URI_LDAPS
 $fatpacked{"URI/mailto.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_MAILTO';
   package URI::mailto;  # RFC 2368
   
+  require URI;
+  require URI::_query;
+  @ISA=qw(URI URI::_query);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent qw(URI URI::_query);
   
   sub to
   {
@@ -16110,12 +15965,8 @@ URI_MAILTO
 $fatpacked{"URI/mms.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_MMS';
   package URI::mms;
   
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::http';
+  require URI::http;
+  @ISA=qw(URI::http);
   
   sub default_port { 1755 }
   
@@ -16125,13 +15976,10 @@ URI_MMS
 $fatpacked{"URI/news.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_NEWS';
   package URI::news;  # draft-gilman-news-url-01
   
+  require URI::_server;
+  @ISA=qw(URI::_server);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_server';
-  
   use URI::Escape qw(uri_unescape);
   use Carp ();
   
@@ -16189,7 +16037,7 @@ $fatpacked{"URI/news.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_NE
   	Carp::croak("Message must contain '\@'") unless $_[0] =~ /\@/;
       }
       my $old = $self->_group(@_);
-      return undef unless $old =~ /\@/;
+      return unless $old =~ /\@/;
       return $old;
   }
   
@@ -16199,12 +16047,8 @@ URI_NEWS
 $fatpacked{"URI/nntp.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_NNTP';
   package URI::nntp;  # draft-gilman-news-url-01
   
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::news';
+  require URI::news;
+  @ISA=qw(URI::news);
   
   1;
 URI_NNTP
@@ -16212,13 +16056,10 @@ URI_NNTP
 $fatpacked{"URI/pop.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_POP';
   package URI::pop;   # RFC 2384
   
+  require URI::_server;
+  @ISA=qw(URI::_server);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_server';
-  
   use URI::Escape qw(uri_unescape);
   
   sub default_port { 110 }
@@ -16246,7 +16087,7 @@ $fatpacked{"URI/pop.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_POP
   	}
       }
   
-      return undef unless defined $old;
+      return unless defined $old;
       $old =~ s/;.*//;
       return uri_unescape($old);
   }
@@ -16274,7 +16115,7 @@ $fatpacked{"URI/pop.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_POP
   	
       }
   
-      return undef unless defined $old;
+      return unless defined $old;
       $old =~ s/^[^;]*//;
       return uri_unescape($1) if $old =~ /;auth=(.*)/i;
       return;
@@ -16285,13 +16126,8 @@ URI_POP
 
 $fatpacked{"URI/rlogin.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_RLOGIN';
   package URI::rlogin;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_login';
+  require URI::_login;
+  @ISA = qw(URI::_login);
   
   sub default_port { 513 }
   
@@ -16303,12 +16139,10 @@ $fatpacked{"URI/rsync.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_R
   
   # rsync://[USER@]HOST[:PORT]/SRC
   
-  use strict;
-  use warnings;
+  require URI::_server;
+  require URI::_userpass;
   
-  our $VERSION = '1.74';
-  
-  use parent qw(URI::_server URI::_userpass);
+  @ISA=qw(URI::_server URI::_userpass);
   
   sub default_port { 873 }
   
@@ -16318,12 +16152,8 @@ URI_RSYNC
 $fatpacked{"URI/rtsp.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_RTSP';
   package URI::rtsp;
   
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::http';
+  require URI::http;
+  @ISA=qw(URI::http);
   
   sub default_port { 554 }
   
@@ -16333,30 +16163,13 @@ URI_RTSP
 $fatpacked{"URI/rtspu.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_RTSPU';
   package URI::rtspu;
   
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::rtsp';
+  require URI::rtsp;
+  @ISA=qw(URI::rtsp);
   
   sub default_port { 554 }
   
   1;
 URI_RTSPU
-
-$fatpacked{"URI/sftp.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SFTP';
-  package URI::sftp;
-  
-  use strict;
-  use warnings;
-  
-  use parent 'URI::ssh';
-  
-  our $VERSION = '1.74';
-  
-  1;
-URI_SFTP
 
 $fatpacked{"URI/sip.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SIP';
   #
@@ -16368,14 +16181,15 @@ $fatpacked{"URI/sip.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SIP
   
   package URI::sip;
   
+  require URI::_server;
+  require URI::_userpass;
+  @ISA=qw(URI::_server URI::_userpass);
+  
   use strict;
-  use warnings;
-  
-  use parent qw(URI::_server URI::_userpass);
-  
+  use vars qw(@ISA $VERSION);
   use URI::Escape qw(uri_unescape);
   
-  our $VERSION = '1.74';
+  $VERSION = "0.11";
   
   sub default_port { 5060 }
   
@@ -16448,13 +16262,8 @@ URI_SIP
 
 $fatpacked{"URI/sips.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SIPS';
   package URI::sips;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::sip';
+  require URI::sip;
+  @ISA=qw(URI::sip);
   
   sub default_port { 5061 }
   
@@ -16466,12 +16275,8 @@ URI_SIPS
 $fatpacked{"URI/snews.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SNEWS';
   package URI::snews;  # draft-gilman-news-url-01
   
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::news';
+  require URI::news;
+  @ISA=qw(URI::news);
   
   sub default_port { 563 }
   
@@ -16482,13 +16287,8 @@ URI_SNEWS
 
 $fatpacked{"URI/ssh.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_SSH';
   package URI::ssh;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_login';
+  require URI::_login;
+  @ISA=qw(URI::_login);
   
   # ssh://[USER@]HOST[:PORT]/SRC
   
@@ -16501,13 +16301,8 @@ URI_SSH
 
 $fatpacked{"URI/telnet.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_TELNET';
   package URI::telnet;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_login';
+  require URI::_login;
+  @ISA = qw(URI::_login);
   
   sub default_port { 23 }
   
@@ -16516,13 +16311,8 @@ URI_TELNET
 
 $fatpacked{"URI/tn3270.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_TN3270';
   package URI::tn3270;
-  
-  use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::_login';
+  require URI::_login;
+  @ISA = qw(URI::_login);
   
   sub default_port { 23 }
   
@@ -16532,17 +16322,13 @@ URI_TN3270
 $fatpacked{"URI/urn.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URN';
   package URI::urn;  # RFC 2141
   
+  require URI;
+  @ISA=qw(URI);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI';
-  
   use Carp qw(carp);
   
-  my %implementor;
-  my %require_attempted;
+  use vars qw(%implementor);
   
   sub _init {
       my $class = shift;
@@ -16562,13 +16348,9 @@ $fatpacked{"URI/urn.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URN
   	$impclass = "URI::urn::$id";
   	no strict 'refs';
   	unless (@{"${impclass}::ISA"}) {
-              if (not exists $require_attempted{$impclass}) {
-                  # Try to load it
-                  my $_old_error = $@;
-                  eval "require $impclass";
-                  die $@ if $@ && $@ !~ /Can\'t locate.*in \@INC/;
-                  $@ = $_old_error;
-              }
+  	    # Try to load it
+  	    eval "require $impclass";
+  	    die $@ if $@ && $@ !~ /Can\'t locate.*in \@INC/;
   	    $impclass = "URI::urn" unless @{"${impclass}::ISA"};
   	}
       }
@@ -16640,13 +16422,10 @@ URI_URN
 $fatpacked{"URI/urn/isbn.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URN_ISBN';
   package URI::urn::isbn;  # RFC 3187
   
+  require URI::urn;
+  @ISA=qw(URI::urn);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::urn';
-  
   use Carp qw(carp);
   
   BEGIN {
@@ -16748,12 +16527,10 @@ URI_URN_ISBN
 $fatpacked{"URI/urn/oid.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'URI_URN_OID';
   package URI::urn::oid;  # RFC 2061
   
+  require URI::urn;
+  @ISA=qw(URI::urn);
+  
   use strict;
-  use warnings;
-  
-  our $VERSION = '1.74';
-  
-  use parent 'URI::urn';
   
   sub oid {
       my $self = shift;

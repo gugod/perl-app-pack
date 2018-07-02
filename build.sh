@@ -21,8 +21,6 @@ function __fatpack_one_executable() {
     cd - >/dev/null 2>&1
 }
 
-MODULES="Data::OptList Params::Util common::sense Sub::Install Sub::Exporter::Util App::FatPacker Getopt::Long::Descriptive Params::Validate DateTime App::Wallflower Perl::Strip App::ph Minilla Dist::Zilla App::hr App::pmuninstall App::Perldoc::Search App::PMUtils App::jt App::es App::YG App::cpm App::pmdir App::tchart App::xkcdpass App::sslmaker App::rainbarf App::perlfind App::PurePorxy App::Git::Spark App::scan_prereqs_cpanfile App::Git::Ribbon Pod::Cpandoc App::watcher App::St IO::Interactive Class::Accessor::Lite Pithub YAML CPAN::DistnameInfo JSON IO::Prompter App::Cmd::Setup Module::Pluggable::Object"
-
 # perlenv=perl-5.22.0@perl-app-pack
 perlenv=v18@perl-app-pack
 
@@ -38,8 +36,9 @@ else
     exit 1
 fi
 
-cpm install --with-recommends -L local --target-perl 5.18.2 --pp $MODULES
-cpanm -L local --notest $MODULES
+cpanm -L local --notest --installdeps .
+# cpm install --no-prebuilt --with-suggests --with-recommends -L local --target-perl 5.18.2
+
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
@@ -51,7 +50,6 @@ do
     if [[ -f $ex ]]; then
         __fatpack_one_executable $ex > bin/$executable
 
-        
         chmod +x bin/$executable
         git add bin/$executable
     else

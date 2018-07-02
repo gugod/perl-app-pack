@@ -5,6 +5,555 @@
 BEGIN {
 my %fatpacked;
 
+$fatpacked{"B/Hooks/EndOfScope.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'B_HOOKS_ENDOFSCOPE';
+  package B::Hooks::EndOfScope; # git description: 0.23-2-ga391106
+  # ABSTRACT: Execute code after a scope finished compilation
+  # KEYWORDS: code hooks execution scope
+  
+  use strict;
+  use warnings;
+  
+  our $VERSION = '0.24';
+  
+  use 5.006001;
+  
+  BEGIN {
+    use Module::Implementation 0.05;
+    Module::Implementation::build_loader_sub(
+      implementations => [ 'XS', 'PP' ],
+      symbols => [ 'on_scope_end' ],
+    )->();
+  }
+  
+  use Sub::Exporter::Progressive 0.001006 -setup => {
+    exports => [ 'on_scope_end' ],
+    groups  => { default => ['on_scope_end'] },
+  };
+  
+  1;
+  
+  __END__
+  
+  =pod
+  
+  =encoding UTF-8
+  
+  =head1 NAME
+  
+  B::Hooks::EndOfScope - Execute code after a scope finished compilation
+  
+  =head1 VERSION
+  
+  version 0.24
+  
+  =head1 SYNOPSIS
+  
+      on_scope_end { ... };
+  
+  =head1 DESCRIPTION
+  
+  This module allows you to execute code when perl finished compiling the
+  surrounding scope.
+  
+  =head1 FUNCTIONS
+  
+  =head2 on_scope_end
+  
+      on_scope_end { ... };
+  
+      on_scope_end $code;
+  
+  Registers C<$code> to be executed after the surrounding scope has been
+  compiled.
+  
+  This is exported by default. See L<Sub::Exporter> on how to customize it.
+  
+  =head1 LIMITATIONS
+  
+  =head2 Pure-perl mode caveat
+  
+  This caveat applies to B<any> version of perl where L<Variable::Magic>
+  is unavailable or otherwise disabled.
+  
+  While L<Variable::Magic> has access to some very dark sorcery to make it
+  possible to throw an exception from within a callback, the pure-perl
+  implementation does not have access to these hacks. Therefore, what
+  would have been a B<compile-time exception> is instead B<converted to a
+  warning>, and your execution will continue as if the exception never
+  happened.
+  
+  To explicitly request an XS (or PP) implementation one has two choices. Either
+  to import from the desired implementation explicitly:
+  
+   use B::Hooks::EndOfScope::XS
+     or
+   use B::Hooks::EndOfScope::PP
+  
+  or by setting C<$ENV{B_HOOKS_ENDOFSCOPE_IMPLEMENTATION}> to either C<XS> or
+  C<PP>.
+  
+  =head2 Perl 5.8.0 ~ 5.8.3
+  
+  Due to a L<core interpreter bug
+  |https://rt.perl.org/Public/Bug/Display.html?id=27040#txn-82797> present in
+  older perl versions, the implementation of B::Hooks::EndOfScope deliberately
+  leaks a single empty hash for every scope being cleaned. This is done to
+  avoid the memory corruption associated with the bug mentioned above.
+  
+  In order to stabilize this workaround use of L<Variable::Magic> is disabled
+  on perls prior to version 5.8.4. On such systems loading/requesting
+  L<B::Hooks::EndOfScope::XS> explicitly will result in a compile-time
+  exception.
+  
+  =head2 Perl versions 5.6.x
+  
+  Versions of perl before 5.8.0 lack a feature allowing changing the visibility
+  of C<%^H> via setting bit 17 within C<$^H>. As such the only way to achieve
+  the effect necessary for this module to work, is to use the C<local> operator
+  explicitly on these platforms. This might lead to unexpected interference
+  with other scope-driven libraries relying on the same mechanism. On the flip
+  side there are no such known incompatibilities at the time this note was
+  written.
+  
+  For further details on the unavailable behavior please refer to the test
+  file F<t/02-localise.t> included with the distribution.
+  
+  =head1 SEE ALSO
+  
+  L<Sub::Exporter>
+  
+  L<Variable::Magic>
+  
+  =head1 SUPPORT
+  
+  Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=B-Hooks-EndOfScope>
+  (or L<bug-B-Hooks-EndOfScope@rt.cpan.org|mailto:bug-B-Hooks-EndOfScope@rt.cpan.org>).
+  
+  =head1 AUTHORS
+  
+  =over 4
+  
+  =item *
+  
+  Florian Ragwitz <rafl@debian.org>
+  
+  =item *
+  
+  Peter Rabbitson <ribasushi@leporine.io>
+  
+  =back
+  
+  =head1 CONTRIBUTORS
+  
+  =for stopwords Karen Etheridge Tatsuhiko Miyagawa Christian Walde Tomas Doran Graham Knop Simon Wilper
+  
+  =over 4
+  
+  =item *
+  
+  Karen Etheridge <ether@cpan.org>
+  
+  =item *
+  
+  Tatsuhiko Miyagawa <miyagawa@bulknews.net>
+  
+  =item *
+  
+  Christian Walde <walde.christian@googlemail.com>
+  
+  =item *
+  
+  Tomas Doran <bobtfish@bobtfish.net>
+  
+  =item *
+  
+  Graham Knop <haarg@haarg.org>
+  
+  =item *
+  
+  Simon Wilper <sxw@chronowerks.de>
+  
+  =back
+  
+  =head1 COPYRIGHT AND LICENCE
+  
+  This software is copyright (c) 2008 by Florian Ragwitz.
+  
+  This is free software; you can redistribute it and/or modify it under
+  the same terms as the Perl 5 programming language system itself.
+  
+  =cut
+B_HOOKS_ENDOFSCOPE
+
+$fatpacked{"B/Hooks/EndOfScope/PP.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'B_HOOKS_ENDOFSCOPE_PP';
+  package B::Hooks::EndOfScope::PP;
+  # ABSTRACT: Execute code after a scope finished compilation - PP implementation
+  
+  use warnings;
+  use strict;
+  
+  our $VERSION = '0.24';
+  
+  use constant _PERL_VERSION => "$]";
+  
+  BEGIN {
+    if (_PERL_VERSION =~ /^5\.009/) {
+      # CBA to figure out where %^H got broken and which H::U::HH is sane enough
+      die "By design B::Hooks::EndOfScope does not operate in pure-perl mode on perl 5.9.X\n"
+    }
+    elsif (_PERL_VERSION < '5.010') {
+      require B::Hooks::EndOfScope::PP::HintHash;
+      *on_scope_end = \&B::Hooks::EndOfScope::PP::HintHash::on_scope_end;
+    }
+    else {
+      require B::Hooks::EndOfScope::PP::FieldHash;
+      *on_scope_end = \&B::Hooks::EndOfScope::PP::FieldHash::on_scope_end;
+    }
+  }
+  
+  use Sub::Exporter::Progressive 0.001006 -setup => {
+    exports => ['on_scope_end'],
+    groups  => { default => ['on_scope_end'] },
+  };
+  
+  sub __invoke_callback {
+    local $@;
+    eval { $_[0]->(); 1 } or do {
+      my $err = $@;
+      require Carp;
+      Carp::cluck( (join ' ',
+        'A scope-end callback raised an exception, which can not be propagated when',
+        'B::Hooks::EndOfScope operates in pure-perl mode. Your program will CONTINUE',
+        'EXECUTION AS IF NOTHING HAPPENED AFTER THIS WARNING. Below is the complete',
+        'exception text, followed by a stack-trace of the callback execution:',
+      ) . "\n\n$err\n\r" );
+  
+      sleep 1 if -t *STDERR;  # maybe a bad idea...?
+    };
+  }
+  
+  1;
+  
+  __END__
+  
+  =pod
+  
+  =encoding UTF-8
+  
+  =head1 NAME
+  
+  B::Hooks::EndOfScope::PP - Execute code after a scope finished compilation - PP implementation
+  
+  =head1 VERSION
+  
+  version 0.24
+  
+  =head1 DESCRIPTION
+  
+  This is the pure-perl implementation of L<B::Hooks::EndOfScope> based only on
+  modules available as part of the perl core. Its leaner sibling
+  L<B::Hooks::EndOfScope::XS> will be automatically preferred if all
+  dependencies are available and C<$ENV{B_HOOKS_ENDOFSCOPE_IMPLEMENTATION}> is
+  not set to C<'PP'>.
+  
+  =head1 FUNCTIONS
+  
+  =head2 on_scope_end
+  
+      on_scope_end { ... };
+  
+      on_scope_end $code;
+  
+  Registers C<$code> to be executed after the surrounding scope has been
+  compiled.
+  
+  This is exported by default. See L<Sub::Exporter> on how to customize it.
+  
+  =head1 SUPPORT
+  
+  Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=B-Hooks-EndOfScope>
+  (or L<bug-B-Hooks-EndOfScope@rt.cpan.org|mailto:bug-B-Hooks-EndOfScope@rt.cpan.org>).
+  
+  =head1 AUTHORS
+  
+  =over 4
+  
+  =item *
+  
+  Florian Ragwitz <rafl@debian.org>
+  
+  =item *
+  
+  Peter Rabbitson <ribasushi@leporine.io>
+  
+  =back
+  
+  =head1 COPYRIGHT AND LICENCE
+  
+  This software is copyright (c) 2008 by Florian Ragwitz.
+  
+  This is free software; you can redistribute it and/or modify it under
+  the same terms as the Perl 5 programming language system itself.
+  
+  =cut
+B_HOOKS_ENDOFSCOPE_PP
+
+$fatpacked{"B/Hooks/EndOfScope/PP/FieldHash.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'B_HOOKS_ENDOFSCOPE_PP_FIELDHASH';
+  # Implementation of a pure-perl on_scope_end for perls > 5.10
+  # (relies on Hash::Util:FieldHash)
+  
+  package # hide from pause
+    B::Hooks::EndOfScope::PP::FieldHash;
+  
+  use strict;
+  use warnings;
+  
+  our $VERSION = '0.24';
+  
+  use Tie::Hash ();
+  use Hash::Util::FieldHash 'fieldhash';
+  
+  # Here we rely on a combination of several behaviors:
+  #
+  # * %^H is deallocated on scope exit, so any references to it disappear
+  # * A lost weakref in a fieldhash causes the corresponding key to be deleted
+  # * Deletion of a key on a tied hash triggers DELETE
+  #
+  # Therefore the DELETE of a tied fieldhash containing a %^H reference will
+  # be the hook to fire all our callbacks.
+  
+  fieldhash my %hh;
+  {
+    package # hide from pause too
+      B::Hooks::EndOfScope::PP::_TieHintHashFieldHash;
+    our @ISA = ( 'Tie::StdHash' );  # in Tie::Hash, in core
+    sub DELETE {
+      my $ret = shift->SUPER::DELETE(@_);
+      B::Hooks::EndOfScope::PP::__invoke_callback($_) for @$ret;
+      $ret;
+    }
+  }
+  
+  sub on_scope_end (&) {
+    $^H |= 0x020000;
+  
+    tie(%hh, 'B::Hooks::EndOfScope::PP::_TieHintHashFieldHash')
+      unless tied %hh;
+  
+    push @{ $hh{\%^H} ||= [] }, $_[0];
+  }
+  
+  1;
+B_HOOKS_ENDOFSCOPE_PP_FIELDHASH
+
+$fatpacked{"B/Hooks/EndOfScope/PP/HintHash.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'B_HOOKS_ENDOFSCOPE_PP_HINTHASH';
+  # Implementation of a pure-perl on_scope_end for perls < 5.10
+  # (relies on lack of compile/runtime duality of %^H before 5.10
+  # which makes guard object operation possible)
+  
+  package # hide from the pauses
+    B::Hooks::EndOfScope::PP::HintHash;
+  
+  use strict;
+  use warnings;
+  
+  our $VERSION = '0.24';
+  
+  use Scalar::Util ();
+  use constant _NEEDS_MEMORY_CORRUPTION_FIXUP => (
+    "$]" >= 5.008
+      and
+    "$]" < 5.008004
+  ) ? 1 : 0;
+  
+  
+  use constant _PERL_VERSION => "$]";
+  
+  # This is the original implementation, which sadly is broken
+  # on perl 5.10+ within string evals
+  sub on_scope_end (&) {
+  
+    # the scope-implicit %^H localization is a 5.8+ feature
+    $^H |= 0x020000
+      if _PERL_VERSION >= 5.008;
+  
+    # the explicit localization of %^H works on anything < 5.10
+    # but we use it only on 5.6 where fiddling $^H has no effect
+    local %^H = %^H
+      if _PERL_VERSION < 5.008;
+  
+    # Workaround for memory corruption during implicit $^H-induced
+    # localization of %^H on 5.8.0~5.8.3, see extended comment below
+    bless \%^H, 'B::Hooks::EndOfScope::PP::HintHash::__GraveyardTransport' if (
+      _NEEDS_MEMORY_CORRUPTION_FIXUP
+        and
+      ref \%^H eq 'HASH'  # only bless if it is a "pure hash" to start with
+    );
+  
+    # localised %^H behaves funny on 5.8 - a
+    # 'local %^H;'
+    # is in effect the same as
+    # 'local %^H = %^H;'
+    # therefore make sure we use different keys so that things do not
+    # fire too early due to hashkey overwrite
+    push @{
+      $^H{sprintf '__B_H_EOS__guardstack_0X%x', Scalar::Util::refaddr(\%^H) }
+        ||= bless ([], 'B::Hooks::EndOfScope::PP::_SG_STACK')
+    }, $_[0];
+  }
+  
+  sub B::Hooks::EndOfScope::PP::_SG_STACK::DESTROY {
+    B::Hooks::EndOfScope::PP::__invoke_callback($_) for @{$_[0]};
+  }
+  
+  # This scope implements a clunky yet effective workaround for a core perl bug
+  # https://rt.perl.org/Public/Bug/Display.html?id=27040#txn-82797
+  #
+  # While we can not prevent the hinthash being marked for destruction twice,
+  # we *can* intercept the first DESTROY pass, and squirrel away the entire
+  # structure, until a time it can (hopefully) no longer do any visible harm
+  #
+  # There still *will* be corruption by the time we get to free it for real,
+  # since we can not prevent Perl's erroneous SAVEFREESV mark. What we hope is
+  # that by then the corruption will no longer matter
+  #
+  # Yes, this code does leak by design. Yes it is better than the alternative.
+  {
+    my @Hint_Hash_Graveyard;
+  
+    # "Leak" this entire structure: ensures it and its contents will not be
+    # garbage collected until the very very very end
+    push @Hint_Hash_Graveyard, \@Hint_Hash_Graveyard
+      if _NEEDS_MEMORY_CORRUPTION_FIXUP;
+  
+    sub B::Hooks::EndOfScope::PP::HintHash::__GraveyardTransport::DESTROY {
+  
+      # Resurrect the hinthash being destroyed, persist it into the graveyard
+      push @Hint_Hash_Graveyard, $_[0];
+  
+      # ensure we won't try to re-resurrect during GlobalDestroy
+      bless $_[0], 'B::Hooks::EndOfScope::PP::HintHash::__DeactivateGraveyardTransport';
+  
+      # Perform explicit free of elements (if any) triggering all callbacks
+      # This is what would have happened without this code being active
+      %{$_[0]} = ();
+    }
+  }
+  
+  1;
+B_HOOKS_ENDOFSCOPE_PP_HINTHASH
+
+$fatpacked{"B/Hooks/EndOfScope/XS.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'B_HOOKS_ENDOFSCOPE_XS';
+  package B::Hooks::EndOfScope::XS;
+  # ABSTRACT: Execute code after a scope finished compilation - XS implementation
+  
+  use strict;
+  use warnings;
+  
+  our $VERSION = '0.24';
+  
+  # Limit the V::M-based (XS) version to perl 5.8.4+
+  #
+  # Given the unorthodox stuff we do to work around the hinthash double-free
+  # might as well play it safe and only implement it in the PP version
+  # and leave it at that
+  # https://rt.perl.org/Public/Bug/Display.html?id=27040#txn-82797
+  #
+  use 5.008004;
+  
+  use Variable::Magic 0.48 ();
+  use Sub::Exporter::Progressive 0.001006 -setup => {
+    exports => ['on_scope_end'],
+    groups  => { default => ['on_scope_end'] },
+  };
+  
+  my $wiz = Variable::Magic::wizard
+    data => sub { [$_[1]] },
+    free => sub { $_->() for @{ $_[1] }; () },
+    # When someone localise %^H, our magic doesn't want to be copied
+    # down. We want it to be around only for the scope we've initially
+    # attached ourselves to. Merely having MGf_LOCAL and a noop svt_local
+    # callback achieves this. If anything wants to attach more magic of our
+    # kind to a localised %^H, things will continue to just work as we'll be
+    # attached with a new and empty callback list.
+    local => \undef
+  ;
+  
+  sub on_scope_end (&) {
+    $^H |= 0x020000;
+  
+    if (my $stack = Variable::Magic::getdata %^H, $wiz) {
+      push @{ $stack }, $_[0];
+    }
+    else {
+      Variable::Magic::cast %^H, $wiz, $_[0];
+    }
+  }
+  
+  1;
+  
+  __END__
+  
+  =pod
+  
+  =encoding UTF-8
+  
+  =head1 NAME
+  
+  B::Hooks::EndOfScope::XS - Execute code after a scope finished compilation - XS implementation
+  
+  =head1 VERSION
+  
+  version 0.24
+  
+  =head1 DESCRIPTION
+  
+  This is the implementation of L<B::Hooks::EndOfScope> based on
+  L<Variable::Magic>, which is an XS module dependent on a compiler. It will
+  always be automatically preferred if L<Variable::Magic> is available.
+  
+  =head1 FUNCTIONS
+  
+  =head2 on_scope_end
+  
+      on_scope_end { ... };
+  
+      on_scope_end $code;
+  
+  Registers C<$code> to be executed after the surrounding scope has been
+  compiled.
+  
+  This is exported by default. See L<Sub::Exporter> on how to customize it.
+  
+  =head1 SUPPORT
+  
+  Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=B-Hooks-EndOfScope>
+  (or L<bug-B-Hooks-EndOfScope@rt.cpan.org|mailto:bug-B-Hooks-EndOfScope@rt.cpan.org>).
+  
+  =head1 AUTHORS
+  
+  =over 4
+  
+  =item *
+  
+  Florian Ragwitz <rafl@debian.org>
+  
+  =item *
+  
+  Peter Rabbitson <ribasushi@leporine.io>
+  
+  =back
+  
+  =head1 COPYRIGHT AND LICENCE
+  
+  This software is copyright (c) 2008 by Florian Ragwitz.
+  
+  This is free software; you can redistribute it and/or modify it under
+  the same terms as the Perl 5 programming language system itself.
+  
+  =cut
+B_HOOKS_ENDOFSCOPE_XS
+
 $fatpacked{"Data/OptList.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'DATA_OPTLIST';
   use strict;
   use warnings;
@@ -3971,6 +4520,183 @@ $fatpacked{"Sub/Exporter.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'SU
   =cut
 SUB_EXPORTER
 
+$fatpacked{"Sub/Exporter/Progressive.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'SUB_EXPORTER_PROGRESSIVE';
+  package Sub::Exporter::Progressive;
+  $Sub::Exporter::Progressive::VERSION = '0.001013';
+  use strict;
+  use warnings;
+  
+  # ABSTRACT: Only use Sub::Exporter if you need it
+  
+  sub _croak {
+    require Carp;
+    &Carp::croak;
+  }
+  
+  sub import {
+     my ($self, @args) = @_;
+  
+     my $inner_target = caller;
+     my $export_data = sub_export_options($inner_target, @args);
+  
+     my $full_exporter;
+     no strict 'refs';
+     no warnings 'once';
+     @{"${inner_target}::EXPORT_OK"} = @{$export_data->{exports}};
+     @{"${inner_target}::EXPORT"} = @{$export_data->{defaults}};
+     %{"${inner_target}::EXPORT_TAGS"} = %{$export_data->{tags}};
+     *{"${inner_target}::import"} = sub {
+        use strict;
+        my ($self, @args) = @_;
+  
+        if ( grep {
+           length ref $_
+              or
+           $_ !~ / \A [:-]? \w+ \z /xm
+        } @args ) {
+           _croak 'your usage of Sub::Exporter::Progressive requires Sub::Exporter to be installed'
+              unless eval { require Sub::Exporter };
+           $full_exporter ||= Sub::Exporter::build_exporter($export_data->{original});
+  
+           goto $full_exporter;
+        } elsif ( defined( (my ($num) = grep { m/^\d/ } @args)[0] ) ) {
+           _croak "cannot export symbols with a leading digit: '$num'";
+        } else {
+           require Exporter;
+           s/ \A - /:/xm for @args;
+           @_ = ($self, @args);
+           goto \&Exporter::import;
+        }
+     };
+     return;
+  }
+  
+  my $too_complicated = <<'DEATH';
+  You are using Sub::Exporter::Progressive, but the features your program uses from
+  Sub::Exporter cannot be implemented without Sub::Exporter, so you might as well
+  just use vanilla Sub::Exporter
+  DEATH
+  
+  sub sub_export_options {
+     my ($inner_target, $setup, $options) = @_;
+  
+     my @exports;
+     my @defaults;
+     my %tags;
+  
+     if ( ($setup||'') eq '-setup') {
+        my %options = %$options;
+  
+        OPTIONS:
+        for my $opt (keys %options) {
+           if ($opt eq 'exports') {
+  
+              _croak $too_complicated if ref $options{exports} ne 'ARRAY';
+              @exports = @{$options{exports}};
+              _croak $too_complicated if grep { length ref $_ } @exports;
+  
+           } elsif ($opt eq 'groups') {
+              %tags = %{$options{groups}};
+              for my $tagset (values %tags) {
+                 _croak $too_complicated if grep {
+                    length ref $_
+                       or
+                    $_ =~ / \A - (?! all \b ) /x
+                 } @{$tagset};
+              }
+              @defaults = @{$tags{default} || [] };
+           } else {
+              _croak $too_complicated;
+           }
+        }
+        @{$_} = map { / \A  [:-] all \z /x ? @exports : $_ } @{$_} for \@defaults, values %tags;
+        $tags{all} ||= [ @exports ];
+        my %exports = map { $_ => 1 } @exports;
+        my @errors = grep { not $exports{$_} } @defaults;
+        _croak join(', ', @errors) . " is not exported by the $inner_target module\n" if @errors;
+     }
+  
+     return {
+        exports => \@exports,
+        defaults => \@defaults,
+        original => $options,
+        tags => \%tags,
+     };
+  }
+  
+  1;
+  
+  __END__
+  
+  =pod
+  
+  =encoding UTF-8
+  
+  =head1 NAME
+  
+  Sub::Exporter::Progressive - Only use Sub::Exporter if you need it
+  
+  =head1 VERSION
+  
+  version 0.001013
+  
+  =head1 SYNOPSIS
+  
+   package Syntax::Keyword::Gather;
+  
+   use Sub::Exporter::Progressive -setup => {
+     exports => [qw( break gather gathered take )],
+     groups => {
+       default => [qw( break gather gathered take )],
+     },
+   };
+  
+   # elsewhere
+  
+   # uses Exporter for speed
+   use Syntax::Keyword::Gather;
+  
+   # somewhere else
+  
+   # uses Sub::Exporter for features
+   use Syntax::Keyword::Gather 'gather', take => { -as => 'grab' };
+  
+  =head1 DESCRIPTION
+  
+  L<Sub::Exporter> is an incredibly powerful module, but with that power comes
+  great responsibility, er- as well as some runtime penalties.  This module
+  is a C<Sub::Exporter> wrapper that will let your users just use L<Exporter>
+  if all they are doing is picking exports, but use C<Sub::Exporter> if your
+  users try to use C<Sub::Exporter>'s more advanced features, like
+  renaming exports, if they try to use them.
+  
+  Note that this module will export C<@EXPORT>, C<@EXPORT_OK> and
+  C<%EXPORT_TAGS> package variables for C<Exporter> to work.  Additionally, if
+  your package uses advanced C<Sub::Exporter> features like currying, this module
+  will only ever use C<Sub::Exporter>, so you might as well use it directly.
+  
+  =head1 CONTRIBUTORS
+  
+  ilmari - Dagfinn Ilmari Mannsåker (cpan:ILMARI) <ilmari@ilmari.org>
+  
+  mst - Matt S. Trout (cpan:MSTROUT) <mst@shadowcat.co.uk>
+  
+  leont - Leon Timmermans (cpan:LEONT) <leont@cpan.org>
+  
+  =head1 AUTHOR
+  
+  Arthur Axel "fREW" Schmidt <Sub-Exporter-Progressive@afoolishmanifesto.com>
+  
+  =head1 COPYRIGHT AND LICENSE
+  
+  This software is copyright (c) 2016 by Arthur Axel "fREW" Schmidt.
+  
+  This is free software; you can redistribute it and/or modify it under
+  the same terms as the Perl 5 programming language system itself.
+  
+  =cut
+SUB_EXPORTER_PROGRESSIVE
+
 $fatpacked{"Sub/Exporter/Util.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'SUB_EXPORTER_UTIL';
   use strict;
   use warnings;
@@ -4783,11 +5509,13 @@ $fatpacked{"Sub/Install.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'SUB
 SUB_INSTALL
 
 $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TINY';
-  package Try::Tiny; # git description: v0.29-2-g3b23a06
+  package Try::Tiny;
+  BEGIN {
+    $Try::Tiny::AUTHORITY = 'cpan:NUFFIN';
+  }
+  $Try::Tiny::VERSION = '0.20';
   use 5.006;
-  # ABSTRACT: Minimal try/catch with proper preservation of $@
-  
-  our $VERSION = '0.30';
+  # ABSTRACT: minimal try/catch with proper preservation of $@
   
   use strict;
   use warnings;
@@ -4798,23 +5526,7 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   use Carp;
   $Carp::Internal{+__PACKAGE__}++;
   
-  BEGIN {
-    my $su = $INC{'Sub/Util.pm'} && defined &Sub::Util::set_subname;
-    my $sn = $INC{'Sub/Name.pm'} && eval { Sub::Name->VERSION(0.08) };
-    unless ($su || $sn) {
-      $su = eval { require Sub::Util; } && defined &Sub::Util::set_subname;
-      unless ($su) {
-        $sn = eval { require Sub::Name; Sub::Name->VERSION(0.08) };
-      }
-    }
-  
-    *_subname = $su ? \&Sub::Util::set_subname
-              : $sn ? \&Sub::Name::subname
-              : sub { $_[1] };
-    *_HAS_SUBNAME = ($su || $sn) ? sub(){1} : sub(){0};
-  }
-  
-  my %_finally_guards;
+  BEGIN { eval "use Sub::Name; 1" or *{subname} = sub {1} }
   
   # Need to prototype as @ not $$ because of the way Perl evaluates the prototype.
   # Keeping it at $$ means you only ever get 1 sub because we need to eval in a list
@@ -4855,17 +5567,10 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
     # $catch->();
   
     # name the blocks if we have Sub::Name installed
-    _subname(caller().'::try {...} ' => $try)
-      if _HAS_SUBNAME;
-  
-    # set up scope guards to invoke the finally blocks at the end.
-    # this should really be a function scope lexical variable instead of
-    # file scope + local but that causes issues with perls < 5.20 due to
-    # perl rt#119311
-    local $_finally_guards{guards} = [
-      map { Try::Tiny::ScopeGuard->_new($_) }
-      @finally
-    ];
+    my $caller = caller;
+    subname("${caller}::try {...} " => $try);
+    subname("${caller}::catch {...} " => $catch) if $catch;
+    subname("${caller}::finally {...} " => $_) foreach @finally;
   
     # save the value of $@ so we can set $@ back to it in the beginning of the eval
     # and restore $@ after the eval finishes
@@ -4887,19 +5592,21 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
         $try->();
       };
   
-      return 1; # properly set $failed to false
+      return 1; # properly set $fail to false
     };
   
     # preserve the current error and reset the original value of $@
     $error = $@;
     $@ = $prev_error;
   
+    # set up a scope guard to invoke the finally block at the end
+    my @guards =
+      map { Try::Tiny::ScopeGuard->_new($_, $failed ? $error : ()) }
+      @finally;
+  
     # at this point $failed contains a true value if the eval died, even if some
     # destructor overwrote $@ as the eval was unwinding.
     if ( $failed ) {
-      # pass $error to the finally blocks
-      push @$_, $error for @{$_finally_guards{guards}};
-  
       # if we got an error, invoke the catch block.
       if ( $catch ) {
         # This works like given($error), but is backwards compatible and
@@ -4924,8 +5631,6 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
     croak 'Useless bare catch()' unless wantarray;
   
-    _subname(caller().'::catch {...} ' => $block)
-      if _HAS_SUBNAME;
     return (
       bless(\$block, 'Try::Tiny::Catch'),
       @rest,
@@ -4937,8 +5642,6 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
     croak 'Useless bare finally()' unless wantarray;
   
-    _subname(caller().'::finally {...} ' => $block)
-      if _HAS_SUBNAME;
     return (
       bless(\$block, 'Try::Tiny::Finally'),
       @rest,
@@ -4949,7 +5652,7 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
     package # hide from PAUSE
       Try::Tiny::ScopeGuard;
   
-    use constant UNSTABLE_DOLLARAT => ("$]" < '5.013002') ? 1 : 0;
+    use constant UNSTABLE_DOLLARAT => ($] < '5.013002') ? 1 : 0;
   
     sub _new {
       shift;
@@ -4986,11 +5689,11 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
   =head1 NAME
   
-  Try::Tiny - Minimal try/catch with proper preservation of $@
+  Try::Tiny - minimal try/catch with proper preservation of $@
   
   =head1 VERSION
   
-  version 0.30
+  version 0.20
   
   =head1 SYNOPSIS
   
@@ -5039,8 +5742,8 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   assign C<"bar"> to C<$x>:
   
     my $x = try { die "foo" } catch { "bar" };
-    my $x = try { die "foo" } || "bar";
-    my $x = (try { die "foo" }) // "bar";
+    my $x = try { die "foo" } || { "bar" };
+    my $x = (try { die "foo" }) // { "bar" };
   
     my $x = eval { die "foo" } || "bar";
   
@@ -5181,10 +5884,8 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   C<$@> must be properly localized before invoking C<eval> in order to avoid this
   issue.
   
-  More specifically,
-  L<before Perl version 5.14.0|perl5140delta/"Exception Handling">
-  C<$@> was clobbered at the beginning of the C<eval>, which
-  also made it impossible to capture the previous error before you die (for
+  More specifically, C<$@> is clobbered at the beginning of the C<eval>, which
+  also makes it impossible to capture the previous error before you die (for
   instance when making exception objects with error stacks).
   
   For this reason C<try> will actually set C<$@> to its previous value (the one
@@ -5227,7 +5928,7 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   C<$@> could also be an overloaded error object that evaluates to false, but
   that's asking for trouble anyway.
   
-  The classic failure mode (fixed in L<Perl 5.14.0|perl5140delta/"Exception Handling">) is:
+  The classic failure mode is:
   
     sub Object::DESTROY {
       eval { ... }
@@ -5263,13 +5964,9 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   This is because an C<eval> that caught a C<die> will always return a false
   value.
   
-  =head1 ALTERNATE SYNTAX
+  =head1 SHINY SYNTAX
   
-  Using Perl 5.10 you can use L<perlsyn/"Switch statements"> (but please don't,
-  because that syntax has since been deprecated because there was too much
-  unexpected magical behaviour).
-  
-  =for stopwords topicalizer
+  Using Perl 5.10 you can use L<perlsyn/"Switch statements">.
   
   The C<catch> block is invoked in a topicalizer context (like a C<given> block),
   but note that you can't return a useful value from C<catch> using the C<when>
@@ -5292,7 +5989,7 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   =item *
   
   C<@_> is not available within the C<try> block, so you need to copy your
-  argument list. In case you want to work with argument values directly via C<@_>
+  arglist. In case you want to work with argument values directly via C<@_>
   aliasing (i.e. allow C<$_[1] = "foo">), you need to pass C<@_> by reference:
   
     sub foo {
@@ -5360,13 +6057,11 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   will not report this when using full stack traces, though, because
   C<%Carp::Internal> is used. This lack of magic is considered a feature.
   
-  =for stopwords unhygienically
-  
   =item *
   
   The value of C<$_> in the C<catch> block is not guaranteed to be the value of
   the exception thrown (C<$@>) in the C<try> block.  There is no safe way to
-  ensure this, since C<eval> may be used unhygienically in destructors.  The only
+  ensure this, since C<eval> may be used unhygenically in destructors.  The only
   guarantee is that the C<catch> will be called if an exception is thrown.
   
   =item *
@@ -5412,9 +6107,9 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
       }
     }
   
-  Note that this behavior was changed once again in
-  L<Perl5 version 18|https://metacpan.org/module/perldelta#given-now-aliases-the-global-_>.
-  However, since the entirety of lexical C<$_> is now L<considered experimental
+  Note that this behavior was changed once again in L<Perl5 version 18
+  |https://metacpan.org/module/perldelta#given-now-aliases-the-global-_>.
+  However, since the entirety of lexical C<$_> is now L<considired experimental
   |https://metacpan.org/module/perldelta#Lexical-_-is-now-experimental>, it
   is unclear whether the new version 18 behavior is final.
   
@@ -5464,10 +6159,9 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
   L<http://web.archive.org/web/20100305133605/http://nothingmuch.woobling.org/talks/yapc_asia_2009/try_tiny.yml>
   
-  =head1 SUPPORT
+  =head1 VERSION CONTROL
   
-  Bugs may be submitted through L<the RT bug tracker|https://rt.cpan.org/Public/Dist/Display.html?Name=Try-Tiny>
-  (or L<bug-Try-Tiny@rt.cpan.org|mailto:bug-Try-Tiny@rt.cpan.org>).
+  L<http://github.com/doy/try-tiny/>
   
   =head1 AUTHORS
   
@@ -5475,7 +6169,7 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
   =item *
   
-  יובל קוג'מן (Yuval Kogman) <nothingmuch@woobling.org>
+  Yuval Kogman <nothingmuch@woobling.org>
   
   =item *
   
@@ -5483,113 +6177,9 @@ $fatpacked{"Try/Tiny.pm"} = '#line '.(1+__LINE__).' "'.__FILE__."\"\n".<<'TRY_TI
   
   =back
   
-  =head1 CONTRIBUTORS
+  =head1 COPYRIGHT AND LICENSE
   
-  =for stopwords Karen Etheridge Peter Rabbitson Ricardo Signes Mark Fowler Graham Knop Lukas Mai Aristotle Pagaltzis Dagfinn Ilmari Mannsåker Paul Howarth Rudolf Leermakers anaxagoras awalker chromatic Alex cm-perl Andrew Yates David Lowe Glenn Hans Dieter Pearcey Jens Berthold Jonathan Yu Marc Mims Stosberg Pali
-  
-  =over 4
-  
-  =item *
-  
-  Karen Etheridge <ether@cpan.org>
-  
-  =item *
-  
-  Peter Rabbitson <ribasushi@cpan.org>
-  
-  =item *
-  
-  Ricardo Signes <rjbs@cpan.org>
-  
-  =item *
-  
-  Mark Fowler <mark@twoshortplanks.com>
-  
-  =item *
-  
-  Graham Knop <haarg@haarg.org>
-  
-  =item *
-  
-  Lukas Mai <l.mai@web.de>
-  
-  =item *
-  
-  Aristotle Pagaltzis <pagaltzis@gmx.de>
-  
-  =item *
-  
-  Dagfinn Ilmari Mannsåker <ilmari@ilmari.org>
-  
-  =item *
-  
-  Paul Howarth <paul@city-fan.org>
-  
-  =item *
-  
-  Rudolf Leermakers <rudolf@hatsuseno.org>
-  
-  =item *
-  
-  anaxagoras <walkeraj@gmail.com>
-  
-  =item *
-  
-  awalker <awalker@sourcefire.com>
-  
-  =item *
-  
-  chromatic <chromatic@wgz.org>
-  
-  =item *
-  
-  Alex <alex@koban.(none)>
-  
-  =item *
-  
-  cm-perl <cm-perl@users.noreply.github.com>
-  
-  =item *
-  
-  Andrew Yates <ayates@haddock.local>
-  
-  =item *
-  
-  David Lowe <davidl@lokku.com>
-  
-  =item *
-  
-  Glenn Fowler <cebjyre@cpan.org>
-  
-  =item *
-  
-  Hans Dieter Pearcey <hdp@weftsoar.net>
-  
-  =item *
-  
-  Jens Berthold <jens@jebecs.de>
-  
-  =item *
-  
-  Jonathan Yu <JAWNSY@cpan.org>
-  
-  =item *
-  
-  Marc Mims <marc@questright.com>
-  
-  =item *
-  
-  Mark Stosberg <mark@stosberg.com>
-  
-  =item *
-  
-  Pali <pali@cpan.org>
-  
-  =back
-  
-  =head1 COPYRIGHT AND LICENCE
-  
-  This software is Copyright (c) 2009 by יובל קוג'מן (Yuval Kogman).
+  This software is Copyright (c) 2014 by Yuval Kogman.
   
   This is free software, licensed under:
   
