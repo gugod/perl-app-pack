@@ -25,7 +25,7 @@ function __fatpack_one_executable() {
 perlenv=v18@perl-app-pack
 
 cd $(dirname $0)
-mkdir bin
+mkdir -p bin
 eval "$(perlbrew init-in-bash)"
 perlbrew use ${perlenv}
 
@@ -36,17 +36,18 @@ else
     exit 1
 fi
 
-cpanm -L local --notest --installdeps .
-# cpm install --no-prebuilt --with-suggests --with-recommends -L local --target-perl 5.18.2
+# cpanm -L local --notest --installdeps .
+cpm install --no-prebuilt --with-suggests --with-recommends -L local --target-perl 5.18.2
 
 
 PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
-for executable in wallflower perlstrip ph minil dzil hr pm-uninstall perldoc-search pmlist jt es yg cpm pmdir tchart xkcdpass sslmaker rainbarf perlfind pureproxy git-vspark git-spark scan-prereqs-cpanfile git-ribbon cpandoc watcher st
+for ex in `pwd`/local/bin/*
 do
-    ex=`pwd`/local/bin/${executable}
+    # ex=`pwd`/local/bin/${executable}
+    executable=$(basename $ex)
     if [[ -f $ex ]]; then
         __fatpack_one_executable $ex > bin/$executable
 
