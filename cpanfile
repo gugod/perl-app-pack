@@ -62,6 +62,7 @@ requires 'Params::ValidationCompiler';
 requires 'Path::Class';
 requires 'Path::Tiny';
 requires 'Perinci::CmdLine::Any';
+requires 'Perinci::CmdLine::Classic';
 requires 'Perl::Strip';
 requires 'Pithub';
 requires 'Pod::Cpandoc';
