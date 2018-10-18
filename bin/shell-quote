@@ -241,8 +241,6 @@ unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
 
-eval 'exec /Users/st21277/perl5/perlbrew/perls/perl-5.18.4/bin/perl -w -S $0 ${1+"$@"}'
-    if 0; # not running under some shell
 use strict;
 
 # $Id: shell-quote,v 1.3 2010-06-11 20:00:24 roderick Exp $
