@@ -3346,7 +3346,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 
 use Term::Spark qw{ show_graph };
 

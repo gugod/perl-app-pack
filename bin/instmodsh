@@ -22908,7 +22908,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/Users/st21277/perl5/perlbrew/perls/perl-5.18.4/bin/perl -w
 
 BEGIN { pop @INC if $INC[-1] eq '.' }
 use strict;

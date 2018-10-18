@@ -51115,7 +51115,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 use strict;
 use warnings;
 use 5.010000;

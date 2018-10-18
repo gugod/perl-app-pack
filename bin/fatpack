@@ -3336,7 +3336,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 
 use App::FatPacker -run_script;
 

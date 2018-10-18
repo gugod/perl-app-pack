@@ -4968,7 +4968,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 BEGIN { $ENV{SSLMAKER_DEBUG} //= grep { /^--silent/ } @ARGV ? 0 : 1; }
 use Applify;
 use Data::Dumper ();

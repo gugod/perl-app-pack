@@ -6863,7 +6863,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 use Pod::Cpandoc;
 exit( Pod::Cpandoc->run() );
 

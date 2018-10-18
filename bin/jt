@@ -11608,7 +11608,6 @@ else {
 unshift @INC, bless \%fatpacked, $class;
   } # END OF FATPACK CODE
 
-#!/usr/bin/env perl
 # PODNAME: jt
 # ABSTRACT: JSON Transformer
 
