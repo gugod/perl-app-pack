@@ -16,7 +16,8 @@ function __fatpack_one_executable() {
     fatpack trace $filename
     fatpack packlists-for `cat fatpacker.trace` >> packlists
     fatpack tree `cat packlists`
-    (echo '#!/usr/bin/env perl'; fatpack file; cat $filename)
+    echo '#!/usr/bin/env perl';
+    (fatpack file; cat $filename) | grep -v '^#!/'
     rm -rf $TMPDIR > /dev/null 2>&1
     cd - >/dev/null 2>&1
 }
