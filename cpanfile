@@ -3,6 +3,7 @@ requires 'App::Cmd::Setup';
 requires 'App::FatPacker';
 requires 'App::Git::Ribbon';
 requires 'App::Git::Spark';
+requires 'App::ModuleBuildTiny';
 requires 'App::PMUtils';
 requires 'App::Perldoc::Search';
 requires 'App::PureProxy';
