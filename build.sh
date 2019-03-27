@@ -34,19 +34,15 @@ hash -r
 
 find local -name '*.p[lm]' | xargs -P 8 perlstrip -s
 
+rm -rf bin/*
+
 for ex in $(pwd)/local/bin/*
 do
     executable=$(basename $ex)
-    if [[ -f $ex ]]; then
-        perl -I local/lib/perl5 ./local/bin/fatpack-simple --no-strip --shebang '#!/usr/bin/env perl' -q -o bin/$executable $ex
-
-        chmod +x bin/$executable
-    else
-        echo "ERROR: $ex is missing"
-    fi
+    perl -I local/lib/perl5 ./local/bin/fatpack-simple --no-strip --shebang '#!/usr/bin/env perl' -q -o bin/$executable $ex
 done
 
-exit
+chmod 755 bin/*
 
 git_changed=$(git status --porcelain)
 
