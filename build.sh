@@ -52,5 +52,4 @@ if [[ "$git_changed" == "" ]]; then
 else
     git add bin
     git commit -m "rebuild"
-    git pull --rebase && git push
 fi
