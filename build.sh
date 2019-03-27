@@ -37,7 +37,7 @@ do
     # ex=`pwd`/local/bin/${executable}
     executable=$(basename $ex)
     if [[ -f $ex ]]; then
-        perl -I local/lib/perl5 ./local/bin/fatpack-simple $ex > -o bin/$executable
+        perl -I local/lib/perl5 ./local/bin/fatpack-simple $ex -o bin/$executable
 
         chmod +x bin/$executable
         git add bin/$executable
