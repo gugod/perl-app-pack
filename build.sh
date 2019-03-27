@@ -25,7 +25,7 @@ else
 fi
 
 # cpanm -L local --notest --installdeps .
-cpm install --pureperl-only --with-suggests --with-recommends -L local --target-perl 5.18.2
+cpm install -w 8 --pureperl-only --with-suggests --with-recommends -L local --target-perl 5.18.2
 cpanm -L local --uninstall --force List::MoreUtils::XS List::Util::XS List::SomeUtils::XS WWW::FormUrlEncoded::XS Package::Stash::XS Class::Load::XS Cpanel::JSON::XS Params::Validate::XS
 
 PATH=`pwd`/local/bin:$PATH
