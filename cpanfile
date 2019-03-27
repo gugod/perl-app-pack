@@ -1,3 +1,4 @@
+requires 'App::FatPacker::Simple';
 requires 'App::calx';
 requires 'Any::URI::Escape';
 requires 'App::Cmd::Setup';
