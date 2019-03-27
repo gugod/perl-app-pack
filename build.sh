@@ -32,12 +32,14 @@ PATH=`pwd`/local/bin:$PATH
 PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
 hash -r
 
+find local -name '*.p[lm]' | xargs -P 8 perlstrip -s
+
 for ex in `pwd`/local/bin/*
 do
     # ex=`pwd`/local/bin/${executable}
     executable=$(basename $ex)
     if [[ -f $ex ]]; then
-        perl -I local/lib/perl5 ./local/bin/fatpack-simple --shebang '#!/usr/bin/env perl' -q -o bin/$executable $ex
+        perl -I local/lib/perl5 ./local/bin/fatpack-simple --no-strip --shebang '#!/usr/bin/env perl' -q -o bin/$executable $ex
 
         chmod +x bin/$executable
         git add bin/$executable
