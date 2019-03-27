@@ -28,21 +28,19 @@ fi
 cpm install -w 8 --pureperl-only --with-suggests --with-recommends -L local --target-perl 5.18.2
 cpanm -L local --uninstall --force List::MoreUtils::XS List::Util::XS List::SomeUtils::XS WWW::FormUrlEncoded::XS Package::Stash::XS Class::Load::XS Cpanel::JSON::XS Params::Validate::XS
 
-PATH=`pwd`/local/bin:$PATH
-PERL5LIB=`pwd`/local/lib/perl5:$PERL5LIB
+PATH=$(pwd)/local/bin:$PATH
+PERL5LIB=$(pwd)/local/lib/perl5:$PERL5LIB
 hash -r
 
 find local -name '*.p[lm]' | xargs -P 8 perlstrip -s
 
-for ex in `pwd`/local/bin/*
+for ex in $(pwd)/local/bin/*
 do
-    # ex=`pwd`/local/bin/${executable}
     executable=$(basename $ex)
     if [[ -f $ex ]]; then
         perl -I local/lib/perl5 ./local/bin/fatpack-simple --no-strip --shebang '#!/usr/bin/env perl' -q -o bin/$executable $ex
 
         chmod +x bin/$executable
-        git add bin/$executable
     else
         echo "ERROR: $ex is missing"
     fi
@@ -56,6 +54,7 @@ if [[ "$git_changed" == "" ]]; then
     echo "Nothing changed. Skip committing."
     exit 0
 else
+    git add bin
     git commit -m "rebuild"
     git pull --rebase && git push
 fi
