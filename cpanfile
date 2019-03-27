@@ -1,3 +1,8 @@
+requires 'App::TimeTracker';
+requires 'App::termpub';
+requires 'App::tldr';
+requires 'App::HI';
+requires 'App::wu';
 requires 'App::FatPacker::Simple';
 requires 'App::calx';
 requires 'Any::URI::Escape';
