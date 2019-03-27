@@ -9,19 +9,6 @@ export PARAMS_VALIDATE_IMPLEMENTATION=PP
 export LIST_MOREUTILS_PP=1
 export MOO_XS_DISABLE=1
 
-function __fatpack_one_executable() {
-    filename=$1
-    TMPDIR=`mktemp -d /tmp/perl-app-pack.XXXXXX` || exit 1
-    cd $TMPDIR
-    fatpack trace $filename
-    fatpack packlists-for `cat fatpacker.trace` >> packlists
-    fatpack tree `cat packlists`
-    echo '#!/usr/bin/env perl';
-    (fatpack file; cat $filename) | grep -v '^#!/' | grep -v "^eval 'exec " | grep -v "  if 0; # not running under some shell"
-    rm -rf $TMPDIR > /dev/null 2>&1
-    cd - >/dev/null 2>&1
-}
-
 # perlenv=perl-5.22.0@perl-app-pack
 perlenv=v18@perl-app-pack
 
@@ -50,7 +37,7 @@ do
     # ex=`pwd`/local/bin/${executable}
     executable=$(basename $ex)
     if [[ -f $ex ]]; then
-        __fatpack_one_executable $ex > bin/$executable
+        ./local/bin/fatpack-simple $ex > -o bin/$executable
 
         chmod +x bin/$executable
         git add bin/$executable
