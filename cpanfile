@@ -1,3 +1,4 @@
+requires 'App::Nopaste';
 requires 'App::TimeTracker';
 requires 'App::termpub';
 requires 'App::tldr';
