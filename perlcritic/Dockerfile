@@ -1,4 +1,4 @@
-FROM perl:5.28
+FROM perl:5.30
 RUN cpanm -q --notest --no-man-pages  \
     Perl::Critic                      \
     Perl::Critic::Bangs               \
