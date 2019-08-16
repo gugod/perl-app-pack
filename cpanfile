@@ -88,6 +88,7 @@ requires 'namespace::autoclean';
 requires 'namespace::clean';
 requires 'strictures';
 requires 'Class::Singleton';
+requires 'List::Util';
 requires 'List::AllUtils';
 requires 'List::SomeUtils';
 requires 'List::UtilsBy';
