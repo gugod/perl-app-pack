@@ -1,8 +1,11 @@
 PP=perl -Mlib=local/lib/perl5 ./local/bin/pp
 
-.PHONY: deps clean all
+.PHONY: deps clean all clean
 
 all: build/bin/jt build/bin/mbtiny build/bin/dzil build/bin/perlbrew
+
+clean:
+	rm -rf build
 
 deps: cpanfile
 	cpm install
@@ -20,6 +23,3 @@ build/bin/mbtiny: local/bin/mbtiny
 
 build/bin/jt: local/bin/jt
 	${PP} -M Regexp::Common:: -o $@ -c $<
-
-clean:
-	rm dzil minicpan mbtiny
