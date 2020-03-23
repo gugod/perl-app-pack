@@ -109,3 +109,6 @@ requires 'Software::License::CCpack';
 requires 'Text::LineFold';
 requires 'Regexp::Common';
 requires 'PAR::Packer';
+requires 'Pod::Perldoc::ToText';
+requires 'IO::Socket::SSL';
+requires 'HTTP::Tiny';
