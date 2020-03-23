@@ -1,22 +1,24 @@
-PP=pp -I local/lib/perl5 -I local/lib/perl5/darwin-2level
+PP=perl -Mlib=local/lib/perl5 ./local/bin/pp
 
-.PHONY: deps clean
+.PHONY: deps clean all
+
+all: build/bin/jt build/bin/mbtiny build/bin/dzil build/bin/perlbrew
 
 deps: cpanfile
 	cpm install
 
 local/bin/*: deps
 
-%: local/bin/%
+build/bin/%: local/bin/%
 	${PP} -o $@ $<
 
-dzil: local/bin/dzil
+build/bin/dzil: local/bin/dzil
 	${PP} -M Throwable -M App::Cmd:: -M Dist::Zilla:: -o $@ $<
 
-mbtiny: local/bin/mbtiny
+build/bin/mbtiny: local/bin/mbtiny
 	${PP} -M Module::CPANfile -M Software::License:: -o $@ $<
 
-jt: local/bin/jt
+build/bin/jt: local/bin/jt
 	${PP} -M Regexp::Common:: -o $@ -c $<
 
 clean:
