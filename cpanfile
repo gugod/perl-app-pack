@@ -108,3 +108,4 @@ requires 'Software::License::PublicDomain';
 requires 'Software::License::CCpack';
 requires 'Text::LineFold';
 requires 'Regexp::Common';
+requires 'PAR::Packer';
