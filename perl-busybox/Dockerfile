@@ -12,4 +12,4 @@ RUN curl -fsSL --compressed https://git.io/cpm > /usr/local/bin/cpm && chmod +x 
     Time::Moment \
     Twitter::API \
     YAML \
-    && rm -rf /root/.cpanm /root/.cpm*
+    && rm -rf /root/.cpanm /root/.perl-cpm
