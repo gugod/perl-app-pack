@@ -6,6 +6,7 @@ RUN curl -fsSL --compressed https://git.io/cpm > /usr/local/bin/cpm && chmod +x 
     Encode \
     Geo::Hash \
     JSON \
+    List::MoreUtils \
     Mojolicious  \
     Path::Tiny \
     Text::CSV \
