@@ -1,3 +1,8 @@
 #!/bin/bash
+cmd=podman
+if which docker
+then
+    cmd=docker
+fi
 
-docker build . --tag gugod/perlcritic-reviewdog:latest --tag gugod/perlcritic-reviewdog:$(date +%Y%m%d)
+$cmd build . --tag docker.io/gugod/perlcritic-reviewdog:latest --tag docker.io/gugod/perlcritic-reviewdog:"$(date +%Y%m%d)"
