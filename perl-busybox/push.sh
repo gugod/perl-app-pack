@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker push gugod/perl-busybox:latest
+docker push docker.io/gugod/perl-busybox:latest

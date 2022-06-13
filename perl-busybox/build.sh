@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker build . --tag gugod/perl-busybox:latest
+docker build . --tag docker.io/gugod/perl-busybox:latest
